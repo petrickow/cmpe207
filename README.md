@@ -1,4 +1,3 @@
-cmpe207
+CMPE 207 project assignment 
 =======
-
-CMPE 207 project assignment
+SJSU spring 2013
