@@ -1,0 +1,40 @@
+import java.net.*;
+import java.net.Socket;
+import java.net.ServerSocket;
+
+import java.io.*;
+
+
+public class Server {
+	
+	public static void main (String[] args) {
+//		make connection to database
+		
+		
+		
+//		init server
+		
+		
+		
+		
+//		connection loop 
+		serverLoop();
+	}
+		
+	static void serverLoop() {
+		int serverPort = 0;
+		int maxConnections = 10;
+		ServerSocket listeningSocket = null;
+        try {
+            listeningSocket = new ServerSocket(serverPort);
+        }
+        catch (IOException e){
+            e.printStackTrace(System.err);
+        }
+		while(true) {
+			
+			
+			
+		}
+	}
+}

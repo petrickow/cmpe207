@@ -1,0 +1,30 @@
+import java.net.*;
+import java.net.Socket;
+import java.net.ServerSocket;
+
+import java.io.*;
+
+
+public class Server {
+	
+	public static void main (String[] args) {
+//		make connection to database
+		
+		
+		
+//		init server
+		
+		
+		
+		
+//		connection loop 
+		connectionLoop();
+	}
+		
+	static void connectionLoop() {
+		
+		int maxConnections = 10;
+		
+		while()
+	}
+}

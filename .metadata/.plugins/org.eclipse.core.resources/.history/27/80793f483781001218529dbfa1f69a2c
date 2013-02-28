@@ -1,0 +1,21 @@
+import java.net.*;
+
+public class Server {
+	
+	public static void main (String[] args) {
+//		make connection to database
+		
+		
+		
+//		init server
+		
+		
+		
+//		connection loop 
+		connectionLoop();
+	}
+		
+	static void connectionLoop() {
+		
+	}
+}
