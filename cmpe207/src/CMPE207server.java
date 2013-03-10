@@ -1,3 +1,5 @@
+import java.net.Socket;
+
 
 public class CMPE207server {
 
@@ -9,7 +11,7 @@ public class CMPE207server {
 		int port, maxConnections;
 		
 		
-		Server server = new Server(1, 7612);
+		Server server = new Server(2, 7612);
 		server.runServer();
 
 	}

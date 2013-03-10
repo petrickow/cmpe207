@@ -29,13 +29,23 @@ public class ConnectionHandler implements Runnable {
 			try {
 				newSocket = ls.accept();
 				System.out.println("Got a new connection!");
+				
+				//make sure we have room
 				connect_client(newSocket);
+				//id not que request.
 			} catch (IOException e) {
 				e.printStackTrace();
 				//restart thread?
 			}
 		}
 	}
+
+	
+	
+	
+	
+	
+	
 	
 	void connect_client(Socket s) throws IOException {
 		int BUFFERSIZE = 120;
@@ -54,7 +64,7 @@ public class ConnectionHandler implements Runnable {
 		else {
 			switch (server.addConnection(s, uname)) {
 				case 0: send_ack(net_out); System.out.println("connection made"); break;
-				case -1: send_error(net_out, "TO MANY CONNECTIONS"); System.out.println("TO MANY CONNECTIONS"); break; //try again? blocking!
+				case -1: send_error(net_out, "TO MANY CONNECTIONS, CONNECTION IN QUE"); System.out.println("TO MANY CONNECTIONS"); break; //put in queue
 				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("ALREADY SIGNED IN"); break;
 				default: System.out.println("Whoot? >__<"); break;
 			}
