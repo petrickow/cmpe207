@@ -30,7 +30,12 @@ public class Server {
 		conHan = new Thread(new ConnectionHandler(this, listeningSocket));
 		
 		
-		users.add("bob");
+		users.add("bob1");
+		users.add("bob2");
+		users.add("bob3");
+		users.add("bob4");
+
+
 	}
 
 	int runServer() {
@@ -41,13 +46,23 @@ public class Server {
 		return 0;
 	}
 	
-	boolean addConnection(Socket newSocket, String uname) {
-		if (connections.size() > 10) //return false if we already have 10 connections
-			return false;
+	int addConnection(Socket newSocket, String uname) {
+		
+		//Make sure the username does not already have a connection
+		for (ClientHandler old_handler : connections) {
+			if (old_handler.uname.equals(uname)) {	//if we find a connection corresponding to that name
+				if (check_connection(old_handler)); //and it is still active return false
+					return -2;						//CONNECTION ALREADY IN USE
+			}
+		}
+		ClientHandler h = new ClientHandler(newSocket, uname);
+		
+		if (connections.size() > maxConnections) 	//return false if we already have 10 connections
+			return -1;								//TO MANY CONNECTIONS
 		else {
-			ClientHandler h = new ClientHandler(newSocket, uname);
 			h.start();
-			return connections.add(h);
+			connections.add(h);
+			return 0;
 		}
 	}
 	
@@ -55,6 +70,18 @@ public class Server {
 		
 		return false;
 	}
+	/**
+	 * Checks connection and makes sure the connection is live. If not terminate and remove connection.
+	 * @param oldh - the connection in question
+	 */
+	private boolean check_connection(ClientHandler oldh) {
+		// TODO Auto-generated method stub, make sure isClosed does what we are looking for: that is
+		// * make sure no one is listening on the other end (make a TEST command in protocol)
+		
+		return (!oldh.socket.isClosed());
+	}
+
+
 	
 	synchronized boolean find_user(String uname) {
 

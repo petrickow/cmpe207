@@ -9,7 +9,7 @@ public class CMPE207server {
 		int port, maxConnections;
 		
 		
-		Server server = new Server(10, 7612);
+		Server server = new Server(1, 7612);
 		server.runServer();
 
 	}
