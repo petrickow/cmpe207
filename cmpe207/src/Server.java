@@ -11,6 +11,8 @@ public class Server {
 	Thread conHan;
 	ServerSocket listeningSocket;
 	
+	//temp until we have DB running
+	LinkedList<String> users;
 	/*Constructor with max connections*/
 	Server(int maxConnections, int port) {
 		this.maxConnections = maxConnections;
@@ -24,26 +26,38 @@ public class Server {
             e.printStackTrace(System.err);
         }
 		connections = new LinkedList<ClientHandler>();
+		users = new LinkedList<String>();
 		conHan = new Thread(new ConnectionHandler(this, listeningSocket));
+		
+		
+		users.add("bob");
 	}
 
 	int runServer() {
 		conHan.start();
 		
-		
 		System.out.println("Server set up and ready to recieve connections");
+		
 		return 0;
 	}
-
 	
-	synchronized boolean addConnection(Socket newConnection) {
+	boolean addConnection(Socket newSocket, String uname) {
 		if (connections.size() > 10) //return false if we already have 10 connections
 			return false;
-		else
-			return connections.add(new ClientHandler(newConnection));
+		else {
+			ClientHandler h = new ClientHandler(newSocket, uname);
+			h.start();
+			return connections.add(h);
+		}
 	}
-	synchronized boolean removeConnection(String uname) {
+	
+	boolean removeConnection(String uname) {
 		
 		return false;
+	}
+	
+	synchronized boolean find_user(String uname) {
+
+		return users.contains(uname);
 	}
 }
