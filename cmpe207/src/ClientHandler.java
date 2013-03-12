@@ -26,19 +26,22 @@ public class ClientHandler extends Thread {
 		
 	@Override
 	public void run() {
-		while (socket == null){
-			QuePack info = server.get_socket();
-			socket = info.s;
-			uname = info.uname;
-		}
+		while(true) {
+			while (socket == null){
+				QuePack info = server.get_socket();
+				socket = info.s;
+				uname = info.uname;
+			}
+			
+			System.out.println("CLIHAN:\tClienthandler for \'" + uname + "\' running");
 		
-		System.out.println("CLIHAN:\tClienthandler for \'" + uname + "\' running");
-		try {
-			net_in = socket.getInputStream();
-			net_out = socket.getOutputStream();
-			listen_for_connection();
-		} catch (IOException e) {
-			e.printStackTrace();
+			try {
+				net_in = socket.getInputStream();
+				net_out = socket.getOutputStream();
+				listen_for_connection();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -49,9 +52,13 @@ public class ClientHandler extends Thread {
 		while (true) {
 			net_in.read(buffer);
 			System.out.println(uname + " wrote to server: " + new String(buffer));
-			
-			
+			if (new String(buffer).trim().equals("close")) {
+				break;
+			}
 		}
+		socket.close();
+		socket = null;
+		server.removeConnection();
 	}
 	
 	synchronized public void new_message(String msg) throws IOException {

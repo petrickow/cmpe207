@@ -63,7 +63,9 @@ public class Server {
 	synchronized QuePack get_socket() {
 		while (queue.size() == 0) {
 			try {
-				wait();
+				System.out.println("Waiting for avaliable space");
+				wait();		//will this work? method synchronized... might want to move wait clause to thread, and 
+				System.out.println("Try again");			//do a notify on all threads... or remove synchronised
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -85,25 +87,15 @@ public class Server {
 		
 		queue.add(new QuePack(newSocket, uname));
 		notifyAll();
-		return 0;
-//		if (active_connections > maxConnections) { 	//return false if we already have 10 connections
-//			
-//			return -1;								//TO MANY CONNECTIONS
-//		} else {
-//			for (ClientHandler h : connections) {
-//				if (h.socket == null) {
-//					h.socket = newSocket;
-//					h.uname = uname;
-//					return 0;
-//				}
-//			}
-//		}
-//		return -3; //SHOULD BE UNREACHABLE
+		if (active_connections >= maxConnections)
+			return -1;
+		else
+			return 0;
 	}
 	
-	boolean removeConnection(String uname) {
-		
-		return false;
+	synchronized void removeConnection() {
+		active_connections--;
+		notifyAll();			//wake sleeping threads
 	}
 	/**
 	 * Checks connection and makes sure the connection is live. If not terminate and remove connection.

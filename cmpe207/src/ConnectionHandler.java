@@ -15,7 +15,6 @@ public class ConnectionHandler implements Runnable {
 	
 	Server server;
 	ServerSocket ls;
-	public int i = 1;
 	
 	ConnectionHandler(Server server, ServerSocket ls) {
 		this.server = server;
@@ -39,12 +38,6 @@ public class ConnectionHandler implements Runnable {
 			}
 		}
 	}
-
-	
-	
-	
-	
-	
 	
 	
 	void connect_client(Socket s) throws IOException {
@@ -54,18 +47,19 @@ public class ConnectionHandler implements Runnable {
 		byte[] recv = new byte[BUFFERSIZE];
 		int len;
 
-		len = net_in.read(recv);						//get uname !!! protocol must be defined
+		len = net_in.read(recv);						//get uname !!! protocol defined
 		String uname = new String(recv).trim();
 		if (!server.find_user(uname)) {
 			System.out.println("No such user");
 			send_error(net_out, "No such user"); 
+			s.close();
 			//Create user???
 		}
 		else {
 			switch (server.addConnection(s, uname)) {
 				case 0: send_ack(net_out); System.out.println("connection made"); break;
-				case -1: send_error(net_out, "TO MANY CONNECTIONS, CONNECTION IN QUE"); System.out.println("TO MANY CONNECTIONS"); break; //put in queue
-				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("ALREADY SIGNED IN"); break;
+				case -1: send_error(net_out, "TO MANY CONNECTIONS, CONNECTION IN QUE"); System.out.println("TO MANY CONNECTIONS, request queued"); break; //put in queue
+				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("ALREADY SIGNED IN"); s.close(); break;
 				default: System.out.println("Whoot? >__<"); break;
 			}
 		}
