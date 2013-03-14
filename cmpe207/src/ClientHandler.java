@@ -27,7 +27,7 @@ public class ClientHandler extends Thread {
 	public void run() {
 		while(true) {
 			while (socket == null){
-				System.out.println("Client Handler:\t\tWaiting for socket");
+				System.out.println("Client Handler:\t\tWaiting for new socket");
 				QuePack info = server.get_socket();
 				socket = info.s;
 				uname = info.uname;
@@ -45,11 +45,11 @@ public class ClientHandler extends Thread {
 
 	//We need to be able to send while still listening for activity
 	private void listen_for_connection() throws IOException {
-		
+		System.out.println(socket);
 		byte[] buffer = new byte[BUFFERSIZE];
 		while (true) {
 			buffer = new byte[BUFFERSIZE]; //zero out buffer
-			net_in.read(buffer);
+			net_in.read(buffer); //Y U NO BLOCK
 			System.out.println("Client Handler:\t\t" + uname + " wrote to server: " + new String(buffer).trim());
 			String command = get_command(new String(buffer).trim());
 			switch (command) {
@@ -81,7 +81,7 @@ public class ClientHandler extends Thread {
 
 	private void handle_msg() {
 		// TODO Auto-generated method stub
-		
+		System.out.println("Handle message from " + uname);
 	}
 
 	private String get_command(String trim) {

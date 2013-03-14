@@ -71,7 +71,7 @@ public class Server {
 		//Make sure the username does not already have a connection
 		for (ClientHandler old_handler : connections) {
 			if (old_handler.uname != null) {
-				if (old_handler.uname.equals(uname) /*&& check_connection(old_handler)*/) {	//if we find a connection corresponding to that name
+				if (old_handler.uname.equals(uname) && old_handler.socket != null) {	//if we find a connection corresponding to that name
 					return -2;						//CONNECTION ALREADY IN USE
 				}
 			}
@@ -92,6 +92,16 @@ public class Server {
 		active_connections--;
 		notifyAll();			//wake sleeping threads
 	}
+
+	/**
+	 * Checks if we have a user by given name
+	 * @param uname
+	 * @return
+	 */
+	synchronized boolean find_user(String uname) {
+
+		return users.contains(uname);
+	}
 	
 	/**
 	 * Checks connection and makes sure the connection is live. If not terminate and remove connection.
@@ -104,13 +114,5 @@ public class Server {
 		return (!oldh.socket.isClosed());
 	}
 	
-	/**
-	 * Checks if we have a user by given name
-	 * @param uname
-	 * @return
-	 */
-	synchronized boolean find_user(String uname) {
 
-		return users.contains(uname);
-	}
 }
