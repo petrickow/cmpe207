@@ -10,13 +10,12 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketAddress;
 
-
 public class ClientHandler extends Thread {
 	int BUFFERSIZE = 120;
 
 	Server server;
 	String uname;
-	Socket socket; 
+	Socket socket;
 	InputStream net_in;
 	OutputStream net_out;
 	
@@ -54,7 +53,7 @@ public class ClientHandler extends Thread {
 			System.out.println("Client Handler:\t\t" + uname + " wrote to server: " + new String(buffer).trim());
 			String command = get_command(new String(buffer).trim());
 			switch (command) {
-				case "CLOSE": close_connection(); break;
+				case "CLOSE": close_connection(); return;
 				case "MSG": handle_msg(); break;
 				case "SHOW": show_wall(get_parameters(new String(buffer).trim())); break;
 			}
@@ -87,7 +86,9 @@ public class ClientHandler extends Thread {
 
 	private String get_command(String trim) {
 		// TODO Auto-generated method stub
-		return null;
+		
+		
+		return trim;
 	}
 	
 	private void close_connection() throws IOException {

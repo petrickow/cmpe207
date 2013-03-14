@@ -71,7 +71,7 @@ public class Server {
 		//Make sure the username does not already have a connection
 		for (ClientHandler old_handler : connections) {
 			if (old_handler.uname != null) {
-				if (old_handler.uname.equals(uname) && check_connection(old_handler)) {	//if we find a connection corresponding to that name
+				if (old_handler.uname.equals(uname) /*&& check_connection(old_handler)*/) {	//if we find a connection corresponding to that name
 					return -2;						//CONNECTION ALREADY IN USE
 				}
 			}
