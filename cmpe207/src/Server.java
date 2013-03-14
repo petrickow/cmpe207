@@ -1,17 +1,16 @@
 import java.net.*;
 import java.util.LinkedList;
-
 import java.io.*;
 
 //set it up, wait for connections, spawn clienthandlers for each connection
 public class Server {
 
-	
 	int active_connections;
-	static int serverPort;
-	static int maxConnections;
+	int serverPort;
+	int maxConnections;
+	
 	ClientHandler connections[];
-	Thread conHan;
+	Thread connection_handler;
 	ServerSocket listeningSocket;
 	
 	LinkedList<QuePack> queue;
@@ -32,25 +31,21 @@ public class Server {
             e.printStackTrace(System.err);
         }
 		
-		
 		connections = new ClientHandler[maxConnections];
 		
 		queue = new LinkedList<QuePack>();
 		users = new LinkedList<String>(); //TODO dbconnection
 		
-		conHan = new Thread(new ConnectionHandler(this, listeningSocket));
-		
+		connection_handler = new Thread(new ConnectionHandler(this, listeningSocket));
 		
 		users.add("bob1");
 		users.add("bob2");
 		users.add("bob3");
 		users.add("bob4");
-
-
 	}
 
 	int runServer() {
-		conHan.start();
+		connection_handler.start();
 		for (int i = 0; i < maxConnections; ++i) {
 			connections[i] = new ClientHandler(this);
 			connections[i].start();
@@ -63,11 +58,8 @@ public class Server {
 	synchronized QuePack get_socket() {
 		while (queue.size() == 0) {
 			try {
-				System.out.println("Waiting for avaliable space");
-				wait();		//will this work? method synchronized... might want to move wait clause to thread, and 
-				System.out.println("Try again");			//do a notify on all threads... or remove synchronised
+				wait();
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -93,10 +85,14 @@ public class Server {
 			return 0;
 	}
 	
+	/**
+	 * Counts down on active connections and notifies all waiting threads
+	 */
 	synchronized void removeConnection() {
 		active_connections--;
 		notifyAll();			//wake sleeping threads
 	}
+	
 	/**
 	 * Checks connection and makes sure the connection is live. If not terminate and remove connection.
 	 * @param oldh - the connection in question
@@ -107,16 +103,14 @@ public class Server {
 		
 		return (!oldh.socket.isClosed());
 	}
-
-
 	
+	/**
+	 * Checks if we have a user by given name
+	 * @param uname
+	 * @return
+	 */
 	synchronized boolean find_user(String uname) {
 
 		return users.contains(uname);
-	}
-
-	public void init_client_handler(Socket newSocket) {
-		
-		
 	}
 }

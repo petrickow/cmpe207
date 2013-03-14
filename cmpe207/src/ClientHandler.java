@@ -28,13 +28,12 @@ public class ClientHandler extends Thread {
 	public void run() {
 		while(true) {
 			while (socket == null){
+				System.out.println("Client Handler:\t\tWaiting for socket");
 				QuePack info = server.get_socket();
 				socket = info.s;
 				uname = info.uname;
+				System.out.println("Client Handler:\t\tManaging connection for "+uname);
 			}
-			
-			System.out.println("CLIHAN:\tClienthandler for \'" + uname + "\' running");
-		
 			try {
 				net_in = socket.getInputStream();
 				net_out = socket.getOutputStream();
@@ -50,19 +49,58 @@ public class ClientHandler extends Thread {
 		
 		byte[] buffer = new byte[BUFFERSIZE];
 		while (true) {
+			buffer = new byte[BUFFERSIZE]; //zero out buffer
 			net_in.read(buffer);
-			System.out.println(uname + " wrote to server: " + new String(buffer));
+			System.out.println("Client Handler:\t\t" + uname + " wrote to server: " + new String(buffer).trim());
+			String command = get_command(new String(buffer).trim());
+			switch (command) {
+				case "CLOSE": close_connection(); break;
+				case "MSG": handle_msg(); break;
+				case "SHOW": show_wall(get_parameters(new String(buffer).trim())); break;
+			}
 			if (new String(buffer).trim().equals("close")) {
 				break;
 			}
 		}
+
+	}
+	
+	/***
+	 * Validate username and connect to database to retrieve messages belonging to that username.
+	 * If no username given show users own wall 
+	 * @param username
+	 */
+	private void show_wall(String username) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private String get_parameters(String buffer) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	private void handle_msg() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private String get_command(String trim) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	
+	private void close_connection() throws IOException {
 		socket.close();
 		socket = null;
 		server.removeConnection();
 	}
-	
-	synchronized public void new_message(String msg) throws IOException {
-		System.out.println(uname + " has gotten a message");
+
+
+
+	@SuppressWarnings("unused")
+	private synchronized void new_message(String msg) throws IOException {
+		System.out.println("Client Handler:\t\t" + uname + " has gotten a message");
 		int len;
 		do {
 			len = net_in.read(msg.getBytes());

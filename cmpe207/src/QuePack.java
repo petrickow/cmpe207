@@ -1,6 +1,5 @@
 import java.net.Socket;
 
-
 public class QuePack implements Comparable<QuePack> {
 	Socket s;
 	String uname;

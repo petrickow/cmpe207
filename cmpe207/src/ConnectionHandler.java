@@ -22,14 +22,15 @@ public class ConnectionHandler implements Runnable {
 	}
 	@Override
 	public void run() {
-		System.out.println("CONHAN:\tListening for new connections");
+		System.out.println("Connection Handler:\tListening for new connections");
 		Socket newSocket;
 		while (true) {
 			try {
+				newSocket = null;
 				newSocket = ls.accept();
-				System.out.println("Got a new connection!");
+				System.out.println("Connection Handler:\tGot a new connection from " + newSocket);
 				
-				//make sure we have room
+				//TODO, this method should be in clienthandler to avoid blocking if the client is slow to respond
 				connect_client(newSocket);
 				//id not que request.
 			} catch (IOException e) {
@@ -46,21 +47,21 @@ public class ConnectionHandler implements Runnable {
 		OutputStream net_out = s.getOutputStream();
 		byte[] recv = new byte[BUFFERSIZE];
 		int len;
-
-		len = net_in.read(recv);						//get uname !!! protocol defined
+		len = net_in.read(recv);	//This is a bottleneck, if client f's up before sending stuff, blocking, freeze
+		
 		String uname = new String(recv).trim();
+		
 		if (!server.find_user(uname)) {
-			System.out.println("No such user");
+			System.out.println("Connection Handler:\tNo such user" + uname);
 			send_error(net_out, "No such user"); 
 			s.close();
-			//Create user???
 		}
 		else {
 			switch (server.addConnection(s, uname)) {
-				case 0: send_ack(net_out); System.out.println("connection made"); break;
-				case -1: send_error(net_out, "TO MANY CONNECTIONS, CONNECTION IN QUE"); System.out.println("TO MANY CONNECTIONS, request queued"); break; //put in queue
-				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("ALREADY SIGNED IN"); s.close(); break;
-				default: System.out.println("Whoot? >__<"); break;
+				case 0: send_ack(net_out); System.out.println("Connection Handler:\tConnection success"); break;
+				case -1: send_error(net_out, "TO MANY CONNECTIONS, CONNECTION IN QUE"); System.out.println("Connection Handler:\tTO MANY CONNECTIONS, request queued"); break; //put in queue
+				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("Connection Handler:\tALREADY SIGNED IN"); s.close(); break;
+				default: System.out.println("Connection Handler:\tWhoot? >__<"); break;
 			}
 		}
 	}
@@ -70,7 +71,7 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	private void send_error(OutputStream net_out, String msg) throws IOException {
-		String error_msg = "ERROR " + msg;
+		String error_msg = "ERROR: " + msg;
 		net_out.write(error_msg.getBytes(), 0, error_msg.length());
 	}
 }
