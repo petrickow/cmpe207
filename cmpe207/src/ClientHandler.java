@@ -56,12 +56,12 @@ public class ClientHandler extends Thread {
 				case "CLOSE": close_connection(); return;
 				case "MSG": handle_msg(); break;
 				case "SHOW": show_wall(get_parameters(new String(buffer).trim())); break;
+				default: System.out.println("unknown command!"); break;
 			}
 			if (new String(buffer).trim().equals("close")) {
 				break;
 			}
 		}
-
 	}
 	
 	/***
@@ -83,12 +83,15 @@ public class ClientHandler extends Thread {
 		// TODO Auto-generated method stub
 		System.out.println("Handle message from " + uname);
 	}
-
-	private String get_command(String trim) {
+	/** 
+	 * The command should be the first word in the literal string received from client
+	 * @param recv
+	 * @return command
+	 */
+	private String get_command(String recv) {
 		// TODO Auto-generated method stub
 		
-		
-		return trim;
+		return recv; //return input
 	}
 	
 	private void close_connection() throws IOException {
