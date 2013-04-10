@@ -40,7 +40,6 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 	
-	
 	void connect_client(Socket s) throws IOException {
 		int BUFFERSIZE = 100;
 		InputStream net_in = s.getInputStream();
@@ -61,7 +60,7 @@ public class ConnectionHandler implements Runnable {
 				case 0: send_ack(net_out); System.out.println("Connection Handler:\tConnection success"); break;
 				case -1: send_error(net_out, "NACK WAIT"); System.out.println("Connection Handler:\tTO MANY CONNECTIONS, request queued"); break; //put in queue
 				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("Connection Handler:\tALREADY SIGNED IN"); s.close(); break;
-				default: System.out.println("Connection Handler:\tWhoot? >__<"); break;
+				default: System.out.println("Connection Handler:\tWhoot? >__<"); break; //unknown error
 			}
 		}
 	}

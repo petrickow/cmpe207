@@ -1,6 +1,7 @@
 import java.net.*;
 import java.util.LinkedList;
 import java.io.*;
+import java.sql.*;
 
 //set it up, wait for connections, spawn clienthandlers for each connection
 public class Server {
@@ -14,8 +15,8 @@ public class Server {
 	ServerSocket listeningSocket;
 	
 	LinkedList<QuePack> queue;
-	
 	//temp until we have DB running
+
 	LinkedList<String> users;
 	
 	/*Constructor with max connections*/
@@ -35,6 +36,13 @@ public class Server {
 		
 		queue = new LinkedList<QuePack>();
 		users = new LinkedList<String>(); //TODO dbconnection
+		Connection c = database_connection();
+		if (c == null) {
+			return;
+		} else {
+			System.out.println(c);
+		}
+		
 		
 		connection_handler = new Thread(new ConnectionHandler(this, listeningSocket));
 		
@@ -114,5 +122,13 @@ public class Server {
 		return (!oldh.socket.isClosed());
 	}
 	
-
+	private Connection database_connection() {
+		try {
+			Class.forName("com.mysql.jdbc.Driver");
+			return ( DriverManager.getConnection("jdbc:mysql://localhost/cmpe207", "root", "root"));
+		} catch (Exception e) {
+			System.out.println("ERROR: " + e);
+		}
+		return null;
+	}
 }

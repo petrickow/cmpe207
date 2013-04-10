@@ -52,15 +52,19 @@ public class ClientHandler extends Thread {
 			net_in.read(buffer); //Y U NO BLOCK
 			System.out.println("Client Handler:\t\t" + uname + " wrote to server: " + new String(buffer).trim());
 			String command = get_command(new String(buffer).trim());
-			switch (command) {
-				case "CLOSE": close_connection(); return;
-				case "MSG": handle_msg(); break;
-				case "SHOW": show_wall(get_parameters(new String(buffer).trim())); break;
-				default: System.out.println("unknown command!"); break;
+			try {
+				switch (command) {
+					case "CLOSE": close_connection(); return;
+					case "MSG": handle_msg(); break;
+					case "SHOW": show_wall(get_parameters(new String(buffer).trim())); break;
+					
+					default: System.out.println("unknown command!"); break;
+				}
+			
+			} catch (NullPointerException e) {
+				System.out.println("No information in package from client!");
 			}
-			if (new String(buffer).trim().equals("close")) {
-				break;
-			}
+			
 		}
 	}
 	
@@ -80,8 +84,9 @@ public class ClientHandler extends Thread {
 	}
 
 	private void handle_msg() {
-		// TODO Auto-generated method stub
 		System.out.println("Handle message from " + uname);
+		//read the message, verify content. Check uname and recipient... store in db and mark unread. Let server notify recipient.
+		
 	}
 	/** 
 	 * The command should be the first word in the literal string received from client
@@ -89,9 +94,13 @@ public class ClientHandler extends Thread {
 	 * @return command
 	 */
 	private String get_command(String recv) {
-		// TODO Auto-generated method stub
+		String[] split;
 		
-		return recv; //return input
+		split = recv.split("\\s+");
+		if (split[0].length() > 0)
+			return split[0]; //return input
+		else
+			return null;
 	}
 	
 	private void close_connection() throws IOException {
@@ -99,8 +108,6 @@ public class ClientHandler extends Thread {
 		socket = null;
 		server.removeConnection();
 	}
-
-
 
 	@SuppressWarnings("unused")
 	private synchronized void new_message(String msg) throws IOException {
