@@ -13,7 +13,8 @@ public class Server {
 	ClientHandler connections[];
 	Thread connection_handler;
 	ServerSocket listeningSocket;
-	
+	Connection dbconnection;
+	Statement dbstat;
 	LinkedList<QuePack> queue;
 	//temp until we have DB running
 
@@ -35,27 +36,38 @@ public class Server {
 		connections = new ClientHandler[maxConnections];
 		
 		queue = new LinkedList<QuePack>();
-		users = new LinkedList<String>(); //TODO dbconnection
-		Connection c = database_connection();
-		if (c == null) {
-			return;
-		} else {
-			System.out.println(c);
-		}
-		
-		
+		users = new LinkedList<String>();
+				
 		connection_handler = new Thread(new ConnectionHandler(this, listeningSocket));
-		
-		users.add("bob1");
-		users.add("bob2");
-		users.add("bob3");
-		users.add("bob4");
 	}
 
+	private ResultSet connect_to_database() {
+		dbconnection = database_connection();
+		if (dbconnection == null) { //failed to connect to database
+			return null;
+		} else {
+			System.out.println("DB connected: " + dbconnection);
+			try {
+				dbstat = dbconnection.createStatement();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		return null;
+	}
+	private void close_database_connection() {
+		try {
+			dbconnection.close();
+			dbstat.close();
+		}catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	int runServer() {
 		connection_handler.start();
 		for (int i = 0; i < maxConnections; ++i) {
-			connections[i] = new ClientHandler(this);
+			connections[i] = new ClientHandler(this, i+1);
 			connections[i].start();
 		}
 		System.out.println("Server set up and ready to recieve connections");
@@ -63,6 +75,10 @@ public class Server {
 		return 0;
 	}
 
+	/**
+	 * Method for ClientHandles to request a socket to handle
+	 * @return	socket in need of handling 
+	 */
 	synchronized QuePack get_socket() {
 		while (queue.size() == 0) {
 			try {
@@ -75,6 +91,14 @@ public class Server {
 		return queue.pop();
 	}
 	
+	/**
+	 * ConnectionHandler updates connection list when receiving a new connection
+	 * @param newSocket - a socket assigned to the new client
+	 * @param uname		- user name of the client //move to client handler
+	 * @return			- error codes 	-2 connection already in use
+	 * 									-1 wait for available client handler
+	 * 									0  all OK
+	 */
 	synchronized int addConnection(Socket newSocket, String uname) {
 		//Make sure the username does not already have a connection
 		for (ClientHandler old_handler : connections) {
@@ -96,39 +120,98 @@ public class Server {
 	/**
 	 * Counts down on active connections and notifies all waiting threads
 	 */
-	synchronized void removeConnection() {
+	synchronized void remove_connection() {
 		active_connections--;
 		notifyAll();			//wake sleeping threads
 	}
 
 	/**
 	 * Checks if we have a user by given name
-	 * @param uname
-	 * @return
+	 * @param uname	the name we want to see if is valid
+	 * @return	true if uname checks out
+	 * @throws SQLException 
 	 */
-	synchronized boolean find_user(String uname) {
-
-		return users.contains(uname);
+	synchronized boolean check_if_user_exist(String uname) {
+		//TODO use == of sorts instead of like... check mysql doc
+		ResultSet result = connect_to_database();
+		try {
+			result = dbstat.executeQuery("SELECT name FROM users WHERE name like \""+uname+"\"");
+			
+			if (result != null) {
+				boolean r = result.next();
+				close_database_connection();
+				result.close();
+				return r;
+			}
+			else {
+				return false;
+			}
+		}
+		catch (SQLException e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 	
 	/**
 	 * Checks connection and makes sure the connection is live. If not terminate and remove connection.
 	 * @param oldh - the connection in question
 	 */
-	private boolean check_connection(ClientHandler oldh) {
-		// TODO Auto-generated method stub, make sure isClosed does what we are looking for: that is
-		// * make sure no one is listening on the other end (make a TEST command in protocol)
-		
-		return (!oldh.socket.isClosed());
-	}
+//	private boolean check_connection(ClientHandler oldh) {
+//		// make sure isClosed does what we are looking for: that is
+//		// make sure no one is listening on the other end (make a TEST command in protocol?)
+//		
+//		return (!oldh.socket.isClosed());
+//	}
 	
 	private Connection database_connection() {
 		try {
-			Class.forName("com.mysql.jdbc.Driver");
+			Class.forName("com.mysql.jdbc.Driver");	
+			//TODO, hardcoded address... prompt user for info for increased security :)
 			return ( DriverManager.getConnection("jdbc:mysql://localhost/cmpe207", "root", "root"));
 		} catch (Exception e) {
 			System.out.println("ERROR: " + e);
 		}
 		return null;
 	}
+	
+	synchronized Message[] get_messages(String username) {
+		String count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\"";
+		ResultSet result = connect_to_database();
+		try {
+			result = dbstat.executeQuery(count_query);
+//			int columns = result.getMetaData().getColumnCount();
+//			StringBuilder message = new StringBuilder();
+//			while (result.next()) {
+//				for (int i = 1; i <= columns; i++) {
+//					message.append(result.getString(i));
+//				}
+//			}
+			result.first();
+			int count = result.getInt(1);
+			Message[] messages = new Message[count];
+			System.out.println("Retriving "+username + count + " messages");
+			if (count == 0)
+				return null;
+			else {
+				//get the messages:
+				String message_query = "SELECT uname, message, sender FROM messages WHERE uname like \"" + username + "\"";
+				result = dbstat.executeQuery(message_query);
+				int i = 0;
+				while (result.next()) {
+					messages[i++] = new Message(result.getString("message"), result.getString("uname"), result.getString("sender"));
+					String m = messages[i-1].toString();
+					System.out.println("\"" + m + "\"");
+				}
+			}
+			result.close();
+			close_database_connection();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	
 }

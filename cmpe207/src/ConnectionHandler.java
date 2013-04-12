@@ -45,12 +45,12 @@ public class ConnectionHandler implements Runnable {
 		InputStream net_in = s.getInputStream();
 		OutputStream net_out = s.getOutputStream();
 		byte[] recv = new byte[BUFFERSIZE];
-		int len;
-		len = net_in.read(recv);	//This is a bottleneck, if client f's up before sending stuff, blocking, freeze
+//		int len;
+		/*len = */net_in.read(recv);	//This is a bottleneck, if client f's up before sending stuff, blocking, freeze
 		
 		String uname = new String(recv).trim();
 		
-		if (!server.find_user(uname)) {
+		if (!server.check_if_user_exist(uname)) {
 			System.out.println("Connection Handler:\tNo such user" + uname);
 			send_error(net_out, "No such user"); 
 			s.close();

@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.SocketAddress;
 
 public class ClientHandler extends Thread {
 	int BUFFERSIZE = 120;
@@ -18,20 +17,21 @@ public class ClientHandler extends Thread {
 	Socket socket;
 	InputStream net_in;
 	OutputStream net_out;
-	
-	public ClientHandler(Server server) {
+	int number;
+	public ClientHandler(Server server, int number) {
 		this.server = server;
+		this.number = number;
 	}
 		
 	@Override
 	public void run() {
 		while(true) {
 			while (socket == null){
-				System.out.println("Client Handler:\t\tWaiting for new socket");
+				System.out.println("Client Handler "+number +":\t\tWaiting for new socket");
 				QuePack info = server.get_socket();
 				socket = info.s;
 				uname = info.uname;
-				System.out.println("Client Handler:\t\tManaging connection for "+uname);
+				System.out.println("Client Handler "+number +":\t\tManaging connection for "+uname);
 			}
 			try {
 				net_in = socket.getInputStream();
@@ -45,24 +45,27 @@ public class ClientHandler extends Thread {
 
 	//We need to be able to send while still listening for activity
 	private void listen_for_connection() throws IOException {
-		System.out.println(socket);
+		System.out.println("Client Handler "+number + " " + socket);
 		byte[] buffer = new byte[BUFFERSIZE];
 		while (true) {
-			buffer = new byte[BUFFERSIZE]; //zero out buffer
-			net_in.read(buffer); //Y U NO BLOCK
-			System.out.println("Client Handler:\t\t" + uname + " wrote to server: " + new String(buffer).trim());
-			String command = get_command(new String(buffer).trim());
+			buffer = new byte[BUFFERSIZE]; 	//clear buffer
+			net_in.read(buffer);			//get content from client
+			System.out.println("Client Handler " + number+":\t\t" + uname + " wrote to server: " + new String(buffer).trim());
+			String[] command = parse_input(new String(buffer).trim());
+			String u = uname;
+			if (command[2] != null)
+				u = command[2];
 			try {
-				switch (command) {
+				switch (command[0]) {
 					case "CLOSE": close_connection(); return;
 					case "MSG": handle_msg(); break;
-					case "SHOW": show_wall(get_parameters(new String(buffer).trim())); break;
+					case "SHOW": show_wall( u ); break;
 					
-					default: System.out.println("unknown command!"); break;
+					default: System.out.println("Client Handler "+ number +" -> recieved unknown command!"); break;
 				}
 			
 			} catch (NullPointerException e) {
-				System.out.println("No information in package from client!");
+				System.out.println("Client Handler "+ number +" -> No information in package from client!");
 			}
 			
 		}
@@ -75,16 +78,27 @@ public class ClientHandler extends Thread {
 	 */
 	private void show_wall(String username) {
 		// TODO Auto-generated method stub
+		System.out.println(username);
+		if (username == null) {
+			username = this.uname;
+		}
+		
+		//the user exist, get info
+		if (server.check_if_user_exist(username)) {
+			Message[] messages = server.get_messages(username);
+			for (Message m : messages) {
+				System.out.println(m);
+			}
+		} else {
+			//let client know there is no such user
+		}
+		
+		
 		
 	}
 
-	private String get_parameters(String buffer) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 	private void handle_msg() {
-		System.out.println("Handle message from " + uname);
+		System.out.println("Client Handler "+number +" ->Handle message from " + uname);
 		//read the message, verify content. Check uname and recipient... store in db and mark unread. Let server notify recipient.
 		
 	}
@@ -93,25 +107,31 @@ public class ClientHandler extends Thread {
 	 * @param recv
 	 * @return command
 	 */
-	private String get_command(String recv) {
-		String[] split;
-		
-		split = recv.split("\\s+");
-		if (split[0].length() > 0)
-			return split[0]; //return input
-		else
-			return null;
+	private String[] parse_input(String input) { //TODO TODO TODO TODO get message and sender user name
+		String[] result = new String[3];
+		//return[0] == command
+		//return[1] == msg
+		//return[2] == username
+		String[] first_split = input.split(" ", 2);
+		if (first_split.length > 0)
+			result[0] = first_split[0];
+		else {
+			result[0] = null;
+			return result;
+		}
+		return result;
 	}
+	
 	
 	private void close_connection() throws IOException {
 		socket.close();
 		socket = null;
-		server.removeConnection();
+		server.remove_connection();
 	}
 
 	@SuppressWarnings("unused")
 	private synchronized void new_message(String msg) throws IOException {
-		System.out.println("Client Handler:\t\t" + uname + " has gotten a message");
+		System.out.println("Client Handler "+number +":\t\t" + uname + " has gotten a message");
 		int len;
 		do {
 			len = net_in.read(msg.getBytes());
