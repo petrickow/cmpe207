@@ -26,9 +26,9 @@ public class ClientHandler extends Thread {
 	@Override
 	public void run() {
 		while(true) {
-			while (socket == null){
+			while (socket == null){ //TODO redundant while loop? 
 				System.out.println("Client Handler "+number +":\t\tWaiting for new socket");
-				QuePack info = server.get_socket();
+				QuePack info = server.get_socket(); //since this method contains wait?
 				socket = info.s;
 				uname = info.uname;
 				System.out.println("Client Handler "+number +":\t\tManaging connection for "+uname);
@@ -45,36 +45,85 @@ public class ClientHandler extends Thread {
 
 	//We need to be able to send while still listening for activity
 	private void listen_for_connection() throws IOException {
-		System.out.println("Client Handler "+number + " " + socket);
+		System.out.println("Client Handler "+number + " listening on socket: " + socket);
 		byte[] buffer = new byte[BUFFERSIZE];
-		while (true) {
+		
+		while (true) {						//get COMMAND - (MSG*) and/or WHO
+			String whos;
 			buffer = new byte[BUFFERSIZE]; 	//clear buffer
 			net_in.read(buffer);			//get content from client
 			System.out.println("Client Handler " + number+":\t\t" + uname + " wrote to server: " + new String(buffer).trim());
-			String[] command = parse_input(new String(buffer).trim());
-			String u = uname;
-			if (command[2] != null)
-				u = command[2];
-			try {
-				switch (command[0]) {
+			String input = new String(buffer).trim();
+			String command = get_command(input);
+			
+			if (command != null) {
+				switch (command) {
 					case "CLOSE": close_connection(); return;
-					case "MSG": handle_msg(); break;
-					case "SHOW": show_wall( u ); break;
+					case "MSG": handle_msg( get_message(input), get_username(input)); break;
+					case "SHOW": show_wall( get_username(input) ); break;
 					
 					default: System.out.println("Client Handler "+ number +" -> recieved unknown command!"); break;
 				}
-			
-			} catch (NullPointerException e) {
+			} else {
 				System.out.println("Client Handler "+ number +" -> No information in package from client!");
 			}
+//			catch (NullPointerException e) {
+//				System.out.println("Client Handler "+ number +" -> No information in package from client!");
+//			}
 			
 		}
 	}
-	
+	private void deliver(Message[] messages) {
+
+		for (Message m : messages) {
+			try {
+				net_out.write(m.to.getBytes());
+				net_out.write(m.message.getBytes());
+				net_out.write(m.from.getBytes());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		
+	}
+
+	/**
+	 * TODO fault handeling
+	 * Parse input and get the message based on predefined protocol
+	 * @param input		the entire message from client
+	 * @return			the extracted message
+	 */
+	private String get_message(String input) {
+		boolean write = false;
+		String msg = "";
+		char[] char_m = input.toCharArray();
+		for (char c : char_m) {
+			if (write == true) {
+				if (c == '\"') 
+					return msg;
+				else 
+					msg += c;
+			}
+			if (c == '\"') {			
+				write = true;
+			}
+		}
+		return null;
+	}
+
+	private String get_username(String input) {
+		String[] dataRows = input.split(" ");  
+		System.out.println("Conserning uname: " +dataRows[dataRows.length-1]);
+		return dataRows[dataRows.length-1]; 
+	}
+
 	/***
 	 * Validate username and connect to database to retrieve messages belonging to that username.
 	 * If no username given show users own wall 
 	 * @param username
+	 * 
 	 */
 	private void show_wall(String username) {
 		// TODO Auto-generated method stub
@@ -82,25 +131,33 @@ public class ClientHandler extends Thread {
 		if (username == null) {
 			username = this.uname;
 		}
-		
-		//the user exist, get info
-		if (server.check_if_user_exist(username)) {
+
+		if (server.check_if_user_exist(username)) { //the user exist, get msg's
 			Message[] messages = server.get_messages(username);
+			deliver(messages);
 			for (Message m : messages) {
 				System.out.println(m);
 			}
 		} else {
 			//let client know there is no such user
 		}
-		
-		
-		
 	}
 
-	private void handle_msg() {
-		System.out.println("Client Handler "+number +" ->Handle message from " + uname);
-		//read the message, verify content. Check uname and recipient... store in db and mark unread. Let server notify recipient.
+	private void handle_msg(String message, String to) {
+		System.out.println("Client Handler "+number +" ->Handle message \"" + message + "\" To: " + to );
 		
+		//Temporary check due to database limitations //should be tested clientside
+		if (message.length() > 160)
+			return;
+		server.store_message(message, uname, to);
+		
+		//read the message, verify content. Check uname and recipient... store in db and mark unread. Let server notify recipient.
+	}
+	
+	
+	private String get_command(String input) {
+		String[] res = input.split(" ", 2);
+		return res[0];
 	}
 	/** 
 	 * The command should be the first word in the literal string received from client
@@ -112,16 +169,14 @@ public class ClientHandler extends Thread {
 		//return[0] == command
 		//return[1] == msg
 		//return[2] == username
-		String[] first_split = input.split(" ", 2);
-		if (first_split.length > 0)
+		String[] first_split = input.split(" ", 2); //first word [0], rest [1]
+		if (first_split[0].length() > 0)
 			result[0] = first_split[0];
 		else {
 			result[0] = null;
-			return result;
 		}
 		return result;
 	}
-	
 	
 	private void close_connection() throws IOException {
 		socket.close();

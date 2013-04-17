@@ -79,8 +79,8 @@ public class Server {
 	 * Method for ClientHandles to request a socket to handle
 	 * @return	socket in need of handling 
 	 */
-	synchronized QuePack get_socket() {
-		while (queue.size() == 0) {
+	synchronized QuePack get_socket() { 
+		while (queue.size() == 0) { //can two threads pass this test at the same time?
 			try {
 				wait();
 			} catch (InterruptedException e) {
@@ -101,6 +101,7 @@ public class Server {
 	 */
 	synchronized int addConnection(Socket newSocket, String uname) {
 		//Make sure the username does not already have a connection
+		
 		for (ClientHandler old_handler : connections) {
 			if (old_handler.uname != null) {
 				if (old_handler.uname.equals(uname) && old_handler.socket != null) {	//if we find a connection corresponding to that name
@@ -178,6 +179,7 @@ public class Server {
 	synchronized Message[] get_messages(String username) {
 		String count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\"";
 		ResultSet result = connect_to_database();
+		Message[] messages = null;
 		try {
 			result = dbstat.executeQuery(count_query);
 //			int columns = result.getMetaData().getColumnCount();
@@ -188,9 +190,9 @@ public class Server {
 //				}
 //			}
 			result.first();
-			int count = result.getInt(1);
-			Message[] messages = new Message[count];
-			System.out.println("Retriving "+username + count + " messages");
+			int count = result.getInt(1);	//buuu hard coded
+			messages = new Message[count];	//but we get the number of messages so we can constuct array
+			System.out.println("Retriving "+ username + " that has " + count + " messages");
 			if (count == 0)
 				return null;
 			else {
@@ -200,18 +202,32 @@ public class Server {
 				int i = 0;
 				while (result.next()) {
 					messages[i++] = new Message(result.getString("message"), result.getString("uname"), result.getString("sender"));
-					String m = messages[i-1].toString();
-					System.out.println("\"" + m + "\"");
+//					String m = messages[i-1].toString();
 				}
 			}
 			result.close();
 			close_database_connection();
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return null;
+		return messages;
 	}
-	
+	synchronized boolean store_message(String message, String from, String to) {
+		
+		connect_to_database();
+		String insert = "INSERT INTO messages (uname, message, sender) VALUES (\""+ to + "\", \"" + message +"\", \"" + from+"\")";
+		try {
+			if (dbstat.executeUpdate(insert) > 0)
+				System.out.println("Success");
+			else 
+				System.out.println("Fail");
+		} catch (SQLException e) {
+			e.printStackTrace();
+			close_database_connection();
+			return false;
+		}
+		
+		return true;
+	}
 	
 }
