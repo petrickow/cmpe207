@@ -171,7 +171,7 @@ public class Server {
 			//TODO, hardcoded address... prompt user for info for increased security :)
 			return ( DriverManager.getConnection("jdbc:mysql://localhost/cmpe207", "root", "root"));
 		} catch (Exception e) {
-			System.out.println("ERROR: " + e);
+			System.out.println("SERVER ERROR: " + e);
 		}
 		return null;
 	}
@@ -192,7 +192,7 @@ public class Server {
 			result.first();
 			int count = result.getInt(1);	//buuu hard coded
 			messages = new Message[count];	//but we get the number of messages so we can constuct array
-			System.out.println("Retriving "+ username + " that has " + count + " messages");
+			System.out.println("SERVER:\tRetriving "+ username + " that has " + count + " messages");
 			if (count == 0)
 				return null;
 			else {
@@ -212,22 +212,43 @@ public class Server {
 		}
 		return messages;
 	}
+	
+	/**
+	 * Save new message to server database. Default marked as not read
+	 * @param message	the message text
+	 * @param from		which user name has sent the message
+	 * @param to		user name of recipient
+	 * @return			true if successfully stored, false if there is an error
+	 */
 	synchronized boolean store_message(String message, String from, String to) {
 		
 		connect_to_database();
 		String insert = "INSERT INTO messages (uname, message, sender) VALUES (\""+ to + "\", \"" + message +"\", \"" + from+"\")";
 		try {
-			if (dbstat.executeUpdate(insert) > 0)
-				System.out.println("Success");
-			else 
+			if (dbstat.executeUpdate(insert) > 0) {
+				System.out.println("SERVER:\tSuccess inserting message to database");
+				for (ClientHandler ch : connections) {
+					if (ch.uname.equals(to)) {
+						System.out.println("SERVER:\tuser is online, delivering message and updating database");
+						ch.deliver(new Message(message, to, from));
+						String read = "UPDATE messages SET isread = true WHERE uname like \""+to+"\" and message like \""+message+"\"";
+						dbstat.executeUpdate(read);
+						break;
+					}
+				}
+			}
+			else {
 				System.out.println("Fail");
+				return false;
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 			close_database_connection();
 			return false;
 		}
 		
+		
+		
 		return true;
 	}
-	
 }

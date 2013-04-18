@@ -7,7 +7,7 @@ public class CMPE207server {
 		//TODO - arguments, get max connections, port... any other?
 //		int port, maxConnections;
 		
-		Server server = new Server(2, 7612);
+		Server server = new Server(2, 7777);
 		server.runServer();
 
 	}

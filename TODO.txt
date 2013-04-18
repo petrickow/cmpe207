@@ -1,0 +1,15 @@
+TODO list CMPE207
+
+
+
+bigger:
+*message id's to update correct message
+*make junit-tests
+*make test script when client is ready
+
+
+concrete:
+*make sure the "to" is a valid user! Has to be done by server
+*retrive messages when user logs on
+
+

@@ -27,11 +27,11 @@ public class ClientHandler extends Thread {
 	public void run() {
 		while(true) {
 			while (socket == null){ //TODO redundant while loop? 
-				System.out.println("Client Handler "+number +":\t\tWaiting for new socket");
+				System.out.println("CLIENT HANDLER "+number +":\t\tWaiting for new socket");
 				QuePack info = server.get_socket(); //since this method contains wait?
 				socket = info.s;
 				uname = info.uname;
-				System.out.println("Client Handler "+number +":\t\tManaging connection for "+uname);
+				System.out.println("CLIENT HANDLER "+number +":\t\tManaging connection for "+uname);
 			}
 			try {
 				net_in = socket.getInputStream();
@@ -45,14 +45,14 @@ public class ClientHandler extends Thread {
 
 	//We need to be able to send while still listening for activity
 	private void listen_for_connection() throws IOException {
-		System.out.println("Client Handler "+number + " listening on socket: " + socket);
+		System.out.println("CLIENT HANDLER "+number + " listening on socket: " + socket);
 		byte[] buffer = new byte[BUFFERSIZE];
 		
 		while (true) {						//get COMMAND - (MSG*) and/or WHO
 			String whos;
 			buffer = new byte[BUFFERSIZE]; 	//clear buffer
 			net_in.read(buffer);			//get content from client
-			System.out.println("Client Handler " + number+":\t\t" + uname + " wrote to server: " + new String(buffer).trim());
+			System.out.println("CLIENT HANDLER " + number+":\t\t" + uname + " wrote to server: " + new String(buffer).trim());
 			String input = new String(buffer).trim();
 			String command = get_command(input);
 			
@@ -62,17 +62,23 @@ public class ClientHandler extends Thread {
 					case "MSG": handle_msg( get_message(input), get_username(input)); break;
 					case "SHOW": show_wall( get_username(input) ); break;
 					
-					default: System.out.println("Client Handler "+ number +" -> recieved unknown command!"); break;
+					default: System.out.println("CLIENT HANDLER "+ number +" -> recieved unknown command!"); break;
 				}
 			} else {
-				System.out.println("Client Handler "+ number +" -> No information in package from client!");
+				System.out.println("CLIENT HANDLER "+ number +" -> No information in package from client!");
 			}
 //			catch (NullPointerException e) {
-//				System.out.println("Client Handler "+ number +" -> No information in package from client!");
+//				System.out.println("CLIENT HANDLER "+ number +" -> No information in package from client!");
 //			}
 			
 		}
 	}
+	public void deliver(Message message) {
+		Message[] m = new Message[1];
+		m[0] = message;
+		deliver(m);
+	}
+	
 	private void deliver(Message[] messages) {
 
 		for (Message m : messages) {
@@ -80,17 +86,30 @@ public class ClientHandler extends Thread {
 				net_out.write(m.to.getBytes());
 				net_out.write(m.message.getBytes());
 				net_out.write(m.from.getBytes());
+				//when success, update Database "read" yes
+				
+				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			
 			
 		}
 		
 	}
 
 	/**
-	 * TODO fault handeling
+	 * Parse input from client for COMMAND as the first word in received string
+	 * @param input		input from client
+	 * @return			null if error otherwise the command string
+	 */
+	private String get_command(String input) {
+		String[] res = input.split(" ", 2);
+		return res[0];
+	}
+	/**
+	 * TODO fault handling
 	 * Parse input and get the message based on predefined protocol
 	 * @param input		the entire message from client
 	 * @return			the extracted message
@@ -144,7 +163,7 @@ public class ClientHandler extends Thread {
 	}
 
 	private void handle_msg(String message, String to) {
-		System.out.println("Client Handler "+number +" ->Handle message \"" + message + "\" To: " + to );
+		System.out.println("CLIENT HANDLER "+number +" ->Handle message \"" + message + "\" To: " + to );
 		
 		//Temporary check due to database limitations //should be tested clientside
 		if (message.length() > 160)
@@ -154,11 +173,7 @@ public class ClientHandler extends Thread {
 		//read the message, verify content. Check uname and recipient... store in db and mark unread. Let server notify recipient.
 	}
 	
-	
-	private String get_command(String input) {
-		String[] res = input.split(" ", 2);
-		return res[0];
-	}
+
 	/** 
 	 * The command should be the first word in the literal string received from client
 	 * @param recv
@@ -186,7 +201,7 @@ public class ClientHandler extends Thread {
 
 	@SuppressWarnings("unused")
 	private synchronized void new_message(String msg) throws IOException {
-		System.out.println("Client Handler "+number +":\t\t" + uname + " has gotten a message");
+		System.out.println("CLIENT HANDLER "+number +":\t\t" + uname + " has gotten a message");
 		int len;
 		do {
 			len = net_in.read(msg.getBytes());
