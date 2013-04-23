@@ -16,9 +16,7 @@ public class Server {
 	Connection dbconnection;
 	Statement dbstat;
 	LinkedList<QuePack> queue;
-	//temp until we have DB running
-
-	LinkedList<String> users;
+	Shell debugconsole;
 	
 	/*Constructor with max connections*/
 	Server(int maxConnections, int port) {
@@ -36,7 +34,6 @@ public class Server {
 		connections = new ClientHandler[maxConnections];
 		
 		queue = new LinkedList<QuePack>();
-		users = new LinkedList<String>();
 				
 		connection_handler = new Thread(new ConnectionHandler(this, listeningSocket));
 	}
@@ -46,7 +43,6 @@ public class Server {
 		if (dbconnection == null) { //failed to connect to database
 			return null;
 		} else {
-			System.out.println("DB connected: " + dbconnection);
 			try {
 				dbstat = dbconnection.createStatement();
 			} catch (SQLException e) {
@@ -70,6 +66,8 @@ public class Server {
 			connections[i] = new ClientHandler(this, i+1);
 			connections[i].start();
 		}
+		debugconsole = new Shell(this);
+		debugconsole.start();
 		System.out.println("Server set up and ready to recieve connections");
 		
 		return 0;
@@ -154,17 +152,6 @@ public class Server {
 		}
 	}
 	
-	/**
-	 * Checks connection and makes sure the connection is live. If not terminate and remove connection.
-	 * @param oldh - the connection in question
-	 */
-//	private boolean check_connection(ClientHandler oldh) {
-//		// make sure isClosed does what we are looking for: that is
-//		// make sure no one is listening on the other end (make a TEST command in protocol?)
-//		
-//		return (!oldh.socket.isClosed());
-//	}
-	
 	private Connection database_connection() {
 		try {
 			Class.forName("com.mysql.jdbc.Driver");	
@@ -181,18 +168,12 @@ public class Server {
 		ResultSet result = connect_to_database();
 		Message[] messages = null;
 		try {
-			result = dbstat.executeQuery(count_query);
-//			int columns = result.getMetaData().getColumnCount();
-//			StringBuilder message = new StringBuilder();
-//			while (result.next()) {
-//				for (int i = 1; i <= columns; i++) {
-//					message.append(result.getString(i));
-//				}
-//			}
+			result = dbstat.executeQuery(count_query); //count number of messages
 			result.first();
-			int count = result.getInt(1);	//buuu hard coded
+			int count = result.getInt(1);	//buuu hard coded to get the result from count query
+			
 			messages = new Message[count];	//but we get the number of messages so we can constuct array
-			System.out.println("SERVER:\tRetriving "+ username + " that has " + count + " messages");
+			System.out.println("SERVER:\tRetriving all "+ username + "'s " + count + " messages");
 			if (count == 0)
 				return null;
 			else {
@@ -220,25 +201,32 @@ public class Server {
 	 * @param to		user name of recipient
 	 * @return			true if successfully stored, false if there is an error
 	 */
-	synchronized boolean store_message(String message, String from, String to) {
-		
+	public synchronized boolean store_message(String message, String from, String to) {
+		if (message == null || to == null) {
+			//either message or to is null
+			return false;
+		}
 		connect_to_database();
 		String insert = "INSERT INTO messages (uname, message, sender) VALUES (\""+ to + "\", \"" + message +"\", \"" + from+"\")";
+		
+		//TODO, refactor, messy code
 		try {
 			if (dbstat.executeUpdate(insert) > 0) {
 				System.out.println("SERVER:\tSuccess inserting message to database");
 				for (ClientHandler ch : connections) {
-					if (ch.uname.equals(to)) {
-						System.out.println("SERVER:\tuser is online, delivering message and updating database");
-						ch.deliver(new Message(message, to, from));
-						String read = "UPDATE messages SET isread = true WHERE uname like \""+to+"\" and message like \""+message+"\"";
-						dbstat.executeUpdate(read);
-						break;
+					if (ch.uname != null) {
+						if (ch.uname.equals(to)) {
+							System.out.println("SERVER:\tuser is online, delivering message and updating database");
+							ch.deliver(new Message(message, to, from));
+							String read = "UPDATE messages SET isread = true WHERE uname like \""+to+"\" and message like \""+message+"\"";
+							dbstat.executeUpdate(read);
+							break;
+						}
 					}
 				}
 			}
 			else {
-				System.out.println("Fail");
+				System.out.println("SERVER:\tDatabase insertion fail");
 				return false;
 			}
 		} catch (SQLException e) {
@@ -246,9 +234,10 @@ public class Server {
 			close_database_connection();
 			return false;
 		}
-		
-		
-		
 		return true;
+	}
+
+	public int num_con() {
+		return active_connections;
 	}
 }
