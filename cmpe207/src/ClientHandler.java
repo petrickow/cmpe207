@@ -50,14 +50,16 @@ public class ClientHandler extends Thread {
 				listen_for_connection();
 			} catch (IOException e) {
 				System.out.println(e.getLocalizedMessage());
-				try {
+				if (socket.isClosed());
 					close_connection();
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
 			} 
 			
 		}
+	}
+
+	//temporary unused solution until we have a check in the protocol to test if client process is running
+	private boolean is_alive() {
+		return !socket.isClosed();
 	}
 
 	//We need to be able to send while still listening for activity
@@ -90,23 +92,26 @@ public class ClientHandler extends Thread {
 	
 	//deliver single message to the user on the other end
 	public void deliver(Message message) {
-		Message[] m = new Message[1];
-		m[0] = message;
-		deliver(m);
+		if (message != null) { 
+			Message[] m = new Message[1];
+			m[0] = message;
+			deliver(m);
+		}
 	}
 	
 	//deliver array of messages
 	private void deliver(Message[] messages) {
-
-		for (Message m : messages) {
-			try {
-				net_out.write(m.to.getBytes());
-				net_out.write(m.from.getBytes());
-				net_out.write(m.message.getBytes());
-				//when success, update Database "read" yes
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		if (messages != null) {
+			for (Message m : messages) {
+				try {
+					net_out.write(m.to.getBytes());
+					net_out.write(m.from.getBytes());
+					net_out.write(m.message.getBytes());
+					//when success, update Database "read" yes
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -124,28 +129,28 @@ public class ClientHandler extends Thread {
 			e.printStackTrace();
 			return;
 		}
-		String username = new String(wallowner);
-
+		String username = new String(wallowner).trim();
 		if (server.check_if_user_exist(username)) { //the user exist, get msg's
 			Message[] messages = server.get_messages(username);
+
 			deliver(messages);
-			for (Message m : messages) {
-				System.out.println(m);
+				
+				//debug
+			if (messages != null) {
+				for (Message m : messages) {
+					System.out.println(m);
+				}
 			}
 		} else {
 			//let client know there is no such user
-			try {
-				net_out.write("ERROR, no such user".getBytes());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			send_error("no such user");
 		}
 	}
 
 	private void handle_msg() {
 		System.out.print("CLIENT HANDLER "+number +" ->Handle message from: " + uname);
 		byte[] byte_to = new byte[MAXUSERNAMELENGTH];
-		byte[] byte_message = new byte[160];
+		byte[] byte_message = new byte[1024]; //max size for messages is set to be 1024 at the moment
 		int length;
 		String to, message;
 		try {
@@ -161,19 +166,31 @@ public class ClientHandler extends Thread {
 				System.out.println(" to: " + to + " reads: \"" + message + "\"");
 			}
 			else
-				net_out.write("ERROR recipient".getBytes());
+				send_error("no such recipient");
 		} catch (IOException e) {
 			e.printStackTrace();
 			return;
 		}
 	}
 	
-	private void close_connection() throws IOException {
-		socket.close();
+	private void close_connection() {
+		try {
+			socket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		socket = null;
 		server.remove_connection();
 	}
-
+	private void send_error(String msg) {
+		String error_msg = "ERROR: " + msg;
+		try {
+			net_out.write(error_msg.getBytes(), 0, error_msg.length());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	
 	
 	

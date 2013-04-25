@@ -135,9 +135,12 @@ public class Server {
 		ResultSet result = connect_to_database();
 		boolean user_exists = false;
 		try {
-			result = dbstat.executeQuery("SELECT uname FROM users WHERE uname like \""+uname+"\"");
+			System.out.println("SELECT uname FROM users WHERE uname like \""+uname+"\" ");
+			result = dbstat.executeQuery("SELECT uname FROM users WHERE uname like \""+uname+"\" ");
 			if (result != null) {
+				result.beforeFirst();
 				user_exists = result.next();
+				System.out.println(user_exists);
 				close_database_connection();
 				result.close();
 				

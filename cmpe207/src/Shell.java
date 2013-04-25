@@ -18,16 +18,11 @@ public class Shell extends Thread  {
 			input = keyboard.nextLine();
 			
 			switch (input) {
-				case "log": log(); break;
 				case "active": count_active(); break;
 				default: System.out.format("not a command\n%s", help()); 
 			}
 			
 		}
-	}
-	
-	private void log() {
-		
 	}
 	
 	private void count_active() {
