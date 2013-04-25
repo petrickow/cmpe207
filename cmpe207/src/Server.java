@@ -133,22 +133,23 @@ public class Server {
 	synchronized boolean check_if_user_exist(String uname) {
 		//TODO use == of sorts instead of like... check mysql doc
 		ResultSet result = connect_to_database();
+		boolean user_exists = false;
 		try {
-			result = dbstat.executeQuery("SELECT name FROM users WHERE name like \""+uname+"\"");
-			
+			result = dbstat.executeQuery("SELECT uname FROM users WHERE uname like \""+uname+"\"");
 			if (result != null) {
-				boolean r = result.next();
+				user_exists = result.next();
 				close_database_connection();
 				result.close();
-				return r;
+				
 			}
 			else {
-				return false;
+				close_database_connection();
 			}
+			return user_exists;
 		}
 		catch (SQLException e) {
 			e.printStackTrace();
-			return false;
+			return user_exists;
 		}
 	}
 	
@@ -204,6 +205,10 @@ public class Server {
 	public synchronized boolean store_message(String message, String from, String to) {
 		if (message == null || to == null) {
 			//either message or to is null
+			return false;
+		}
+		if (!check_if_user_exist(to)) {
+			System.out.println("User does not exist");
 			return false;
 		}
 		connect_to_database();
