@@ -62,9 +62,9 @@ public class ConnectionHandler implements Runnable {
 			return;
 		}
 		
-		String uname = new String(recv).trim();
+		String uname = new String(recv);
 		
-		if (!server.check_if_user_exist(uname)) {
+		if (!server.check_if_user_exist(uname.trim())) {
 			System.out.println("Connection Handler:\tNo such user" + uname);
 			send_error(net_out, "No such user"); 
 			s.close();
@@ -80,11 +80,12 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	private void send_ack(OutputStream net_out) throws IOException {
-		net_out.write("ACK".getBytes(), 0, 3);
+		System.out.println("Sending ACK");
+		net_out.write("ACK\n".getBytes(), 0, 4);
 	}
 
 	private void send_error(OutputStream net_out, String msg) throws IOException {
-		String error_msg = "ERROR: " + msg;
+		String error_msg = "ERROR: " + msg + "\n";
 		net_out.write(error_msg.getBytes(), 0, error_msg.length());
 	}
 }

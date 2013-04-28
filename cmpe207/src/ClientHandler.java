@@ -6,9 +6,13 @@
 //VERY IMPORTANT TODO!
 //Timeout for all network operations (net_in/out)!
 
+import java.io.DataInputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -20,8 +24,8 @@ public class ClientHandler extends Thread {
 	Server server;
 	String uname;
 	Socket socket;
-	InputStream net_in;
-	OutputStream net_out;
+	BufferedReader net_in;
+	PrintStream net_out;
 	int number;
 
 	public ClientHandler(Server server, int number) {
@@ -48,19 +52,20 @@ public class ClientHandler extends Thread {
 					System.out.println("CLIENT HANDLER "+number +":\t\tManaging connection for "+uname);
 				}
 			}
+				
+			//first get and send all new messages
+			
+			
+
 			try {
-				net_in = socket.getInputStream();
-				net_out = socket.getOutputStream();
-				
-				//first get and send all new messages
-				deliver(server.get_messages(uname, true));
-				
+				net_out = new PrintStream(socket.getOutputStream());
+				net_in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+//				deliver(server.get_messages(uname, true));
 				listen_for_connection();
 			} catch (IOException e) {
-				System.out.println(e.getLocalizedMessage());
-				if (socket.isClosed());
-					close_connection();
+				e.printStackTrace();
 			}
+
 		}
 	}
 
@@ -77,9 +82,11 @@ public class ClientHandler extends Thread {
 		while (true) {						//get COMMAND - (MSG*) and/or WHO
 			String whos;
 			buffer = new byte[BUFFERSIZE]; 	//clear buffer
-			net_in.read(buffer);			//get content from client
-			System.out.println("CLIENT HANDLER " + number+":\t\t" + uname + " wrote to server: " + new String(buffer).trim());
-			String input = new String(buffer).trim();
+			
+			System.out.println("...waiting for client");
+			String input = read_client();	//get content from client
+			
+			System.out.println("CLIENT HANDLER " + number+":\t\t" + uname + " wrote to server: " + input);
 			
 			String command = input /*get_command(input)*/;
 			
@@ -87,7 +94,7 @@ public class ClientHandler extends Thread {
 				switch (command) {
 					case "CLOSE": close_connection(); return;
 					case "MSG": handle_msg(); break;
-					case "SHOW": show_wall(); break;
+					case "SHOW": show_wall(read_client()); break;
 					
 					default: System.out.println("CLIENT HANDLER "+ number +" -> recieved unknown command!"); break;
 				}
@@ -108,37 +115,27 @@ public class ClientHandler extends Thread {
 	
 	//deliver array of messages
 	private void deliver(Message[] messages) {
-		byte[] bytes_ack = new byte[10];
-		try {
-			if (messages != null) {
-				for (Message m : messages) {
-					net_out.write(m.to.getBytes());
-					net_out.write(m.from.getBytes());
-					net_out.write(m.message.getBytes());
-					net_in.read(bytes_ack);
-					//when success, update Database "read" yes
-				}
+		if (messages != null) {
+			for (Message m : messages) {
+				write_client(m.to + "\n");
+				write_client(m.from + "\n");
+				write_client(m.message + "\n");
+				//when success, update Database "read" yes
 			}
-			net_out.write("LAST".getBytes());
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 		}
+		
+		write_client("LAST\n");
 	}
 
 	/***
 	 * Show all messages to a given user. Receive a username from connection
 	 * and query database for messages to that username
 	 */
-	private void show_wall() {
-		byte[] wallowner = new byte[MAXUSERNAMELENGTH];
-		try {
-			net_in.read(wallowner);
-		} catch (IOException e) {
-			e.printStackTrace();
+	private void show_wall(String username) {
+		
+		System.out.println("... getting "+ username + "'s wall");
+		if (username == null)
 			return;
-		}
-		String username = new String(wallowner).trim();
 		boolean only_new = false; 					//to make code more self explanatory
 		if (server.check_if_user_exist(username)) { //the user exist, get msg's
 			
@@ -161,28 +158,21 @@ public class ClientHandler extends Thread {
 
 	private void handle_msg() {
 		System.out.print("CLIENT HANDLER "+number +" ->Handle message from: " + uname);
-		byte[] byte_to = new byte[MAXUSERNAMELENGTH];
-		byte[] byte_message = new byte[1024]; //max size for messages is set to be 1024 at the moment
+//		byte[] byte_to = new byte[MAXUSERNAMELENGTH];
+//		byte[] byte_message = new byte[1024]; //max size for messages is set to be 1024 at the moment
 		int length;
 		String to, message;
-		try {
-			//get the recipient and the message itself
-			length = net_in.read(byte_to);
-			to = new String(byte_to).trim();
-			length = net_in.read(byte_message);
-			message = new String(byte_message).trim();
-			
-			//ready to store
-			if (server.store_message(message, uname, to)) {
-				net_out.write("SENT".getBytes());
-				System.out.println(" to: " + to + " reads: \"" + message + "\"");
-			}
-			else
-				send_error("no such recipient");
-		} catch (IOException e) {
-			e.printStackTrace();
-			return;
+		//get the recipient and the message itself
+		to = read_client();
+		message = read_client();
+		
+		//ready to store
+		if (server.store_message(message, uname, to)) {
+			write_client("SENT");
+			System.out.println(" to: " + to + " reads: \"" + message + "\"");
 		}
+		else
+			send_error("no such recipient");
 	}
 	
 	private void close_connection() {
@@ -194,27 +184,44 @@ public class ClientHandler extends Thread {
 		socket = null;
 		server.remove_connection();
 	}
+	
 	private void send_error(String msg) {
 		String error_msg = "ERROR: " + msg;
-		try {
-			net_out.write(error_msg.getBytes(), 0, error_msg.length());
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		write_client(error_msg);
+	}
+	
+	private void write_client(String s) {
+		if (s != null) {
+			try {
+				net_out.write(s.getBytes());
+				net_out.flush();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 	
-	
-	
-	
+	private String read_client() {
+		String s;
+		try {
+			s = net_in.readLine();
+			System.out.println("server received " + s.length() + "bytes");
+		} catch (IOException e) {
+			e.getLocalizedMessage();
+			return null;
+		}
+		
+		return s;
+	}
 	
 	@SuppressWarnings("unused")
 	private synchronized void new_message(String msg) throws IOException {
 		System.out.println("CLIENT HANDLER "+number +":\t\t" + uname + " has gotten a message");
-		int len;
-		do {
-			len = net_in.read(msg.getBytes());
-		} while (len != 0);
+//		int len;
+//		do {
+//			len = net_in.read(msg.getBytes());
+//		} while (len != 0);
 	}
 	
 	private void error_shutdown() {
@@ -223,6 +230,5 @@ public class ClientHandler extends Thread {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
 	}
 }
