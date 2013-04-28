@@ -85,8 +85,12 @@ public class Server {
 				e.printStackTrace();
 			}
 		}
-		active_connections++;
-		return queue.pop();
+		if (!queue.peek().s.isClosed()) {
+			active_connections++;
+			return queue.pop();
+		}
+		else
+			return null;
 	}
 	
 	/**
@@ -135,12 +139,10 @@ public class Server {
 		ResultSet result = connect_to_database();
 		boolean user_exists = false;
 		try {
-			System.out.println("SELECT uname FROM users WHERE uname like \""+uname+"\" ");
 			result = dbstat.executeQuery("SELECT uname FROM users WHERE uname like \""+uname+"\" ");
 			if (result != null) {
 				result.beforeFirst();
 				user_exists = result.next();
-				System.out.println(user_exists);
 				close_database_connection();
 				result.close();
 				
@@ -167,8 +169,18 @@ public class Server {
 		return null;
 	}
 	
-	synchronized Message[] get_messages(String username) {
-		String count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\"";
+	synchronized Message[] get_messages(String username, boolean only_new) {
+		String count_query;
+		String message_query;
+		if (only_new) {
+			message_query = "SELECT uname, message, sender FROM messages WHERE uname like \"" + username + "\" AND `read` IS FALSE";
+			count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\" AND `read` IS FALSE";
+		}
+		else {
+			message_query = "SELECT uname, message, sender FROM messages WHERE uname like \"" + username + "\"";
+			count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\"";
+		}
+		
 		ResultSet result = connect_to_database();
 		Message[] messages = null;
 		try {
@@ -182,7 +194,7 @@ public class Server {
 				return null;
 			else {
 				//get the messages:
-				String message_query = "SELECT uname, message, sender FROM messages WHERE uname like \"" + username + "\"";
+				
 				result = dbstat.executeQuery(message_query);
 				int i = 0;
 				while (result.next()) {

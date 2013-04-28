@@ -11,18 +11,19 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.SocketTimeoutException;
 
 public class ClientHandler extends Thread {
-	int BUFFERSIZE = 120;
+	int BUFFERSIZE = 1024;
 	int MAXUSERNAMELENGTH = 30;
-	
+	boolean NEW_MESSAGES = true;
+	boolean ALL_MESSAGES = false;
 	Server server;
 	String uname;
 	Socket socket;
 	InputStream net_in;
 	OutputStream net_out;
 	int number;
+
 	public ClientHandler(Server server, int number) {
 		this.server = server;
 		this.number = number;
@@ -34,26 +35,32 @@ public class ClientHandler extends Thread {
 			while (socket == null){ //TODO redundant while loop? 
 				System.out.println("CLIENT HANDLER "+number +":\t\tWaiting for new socket");
 				QuePack info = server.get_socket(); //since this method contains wait?
-				socket = info.s;
-				try {
-					socket.setSoTimeout(30*1000); //30 seconds timeout
-				} catch (SocketException e) {
-					//Timer was interrupted
-					e.printStackTrace();
+				if (info != null) {
+					socket = info.s;
+					try {
+						socket.setSoTimeout(30*1000); //n seconds timeout
+					} catch (SocketException e) {
+						//Socket error! 
+						e.printStackTrace();
+						return;
+					}
+					uname = info.uname; //getting username should be done here to avoid bottleneck in connection handler
+					System.out.println("CLIENT HANDLER "+number +":\t\tManaging connection for "+uname);
 				}
-				uname = info.uname; //getting username should be done here to avoid bottleneck in connection handler
-				System.out.println("CLIENT HANDLER "+number +":\t\tManaging connection for "+uname);
 			}
 			try {
 				net_in = socket.getInputStream();
 				net_out = socket.getOutputStream();
+				
+				//first get and send all new messages
+				deliver(server.get_messages(uname, true));
+				
 				listen_for_connection();
 			} catch (IOException e) {
 				System.out.println(e.getLocalizedMessage());
 				if (socket.isClosed());
 					close_connection();
-			} 
-			
+			}
 		}
 	}
 
@@ -101,18 +108,21 @@ public class ClientHandler extends Thread {
 	
 	//deliver array of messages
 	private void deliver(Message[] messages) {
-		if (messages != null) {
-			for (Message m : messages) {
-				try {
+		byte[] bytes_ack = new byte[10];
+		try {
+			if (messages != null) {
+				for (Message m : messages) {
 					net_out.write(m.to.getBytes());
 					net_out.write(m.from.getBytes());
 					net_out.write(m.message.getBytes());
+					net_in.read(bytes_ack);
 					//when success, update Database "read" yes
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
 				}
 			}
+			net_out.write("LAST".getBytes());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 		}
 	}
 
@@ -121,7 +131,6 @@ public class ClientHandler extends Thread {
 	 * and query database for messages to that username
 	 */
 	private void show_wall() {
-		// TODO Auto-generated method stub
 		byte[] wallowner = new byte[MAXUSERNAMELENGTH];
 		try {
 			net_in.read(wallowner);
@@ -130,8 +139,11 @@ public class ClientHandler extends Thread {
 			return;
 		}
 		String username = new String(wallowner).trim();
+		boolean only_new = false; 					//to make code more self explanatory
 		if (server.check_if_user_exist(username)) { //the user exist, get msg's
-			Message[] messages = server.get_messages(username);
+			
+			//TODO, move nullpointertest here to avoid doing the same test over
+			Message[] messages = server.get_messages(username, only_new);
 
 			deliver(messages);
 				
@@ -162,7 +174,7 @@ public class ClientHandler extends Thread {
 			
 			//ready to store
 			if (server.store_message(message, uname, to)) {
-				net_out.write("Message sent".getBytes());
+				net_out.write("SENT".getBytes());
 				System.out.println(" to: " + to + " reads: \"" + message + "\"");
 			}
 			else

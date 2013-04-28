@@ -21,5 +21,4 @@ public class CMPE207server {
 		server.runServer();
 
 	}
-
 }

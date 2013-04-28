@@ -10,6 +10,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 
 public class ConnectionHandler implements Runnable {
 	
@@ -22,7 +24,7 @@ public class ConnectionHandler implements Runnable {
 	}
 	@Override
 	public void run() {
-		System.out.println("Connection Handler:\tListening for new connections");
+		System.out.println("Connection Handler:\tListening for new connections on port: " + server.serverPort);
 		Socket newSocket;
 		while (true) {
 			try {
@@ -41,12 +43,24 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	void connect_client(Socket s) throws IOException {
-		int BUFFERSIZE = 100;
+		int BUFFERSIZE = 100; //small buffersize for initialization
+		try {
+			s.setSoTimeout(3*1000); //3 seconds timeout to avoid starvation, should be shorter or allow multiple connections to be made (bottleneck)
+		} catch (SocketException e) {
+			System.out.println("....");
+			s.close();
+		}
 		InputStream net_in = s.getInputStream();
 		OutputStream net_out = s.getOutputStream();
 		byte[] recv = new byte[BUFFERSIZE];
-//		int len;
-		/*len = */net_in.read(recv);	//This is a bottleneck, if client f's up before sending stuff, blocking, freeze
+		try {
+			net_in.read(recv);	//This is a bottleneck, if client f's up before sending stuff, blocking, freeze
+		} catch (SocketTimeoutException e) {
+			System.out.println(e.getLocalizedMessage());
+			send_error(net_out, "Timeout on login"); 
+			s.close();
+			return;
+		}
 		
 		String uname = new String(recv).trim();
 		
