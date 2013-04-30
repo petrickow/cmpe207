@@ -37,6 +37,7 @@ public class Communicator extends Thread {
 				
 				String fromServer = sockInput.readLine();
 				if (fromServer != null) {
+					//TODO handle message					
 					System.out.println(fromServer);
 				}
 			} catch (IOException e ) {
@@ -64,6 +65,7 @@ public class Communicator extends Thread {
 			if (buffer.equals("ACK")) {
 				connected = true;
 				System.out.println("Connection have been established.");
+				recv_messages();
 				return true;
 			} else if (buffer.equals("NACK WAIT")) {
 				int tries = 0;
@@ -101,14 +103,8 @@ public class Communicator extends Thread {
 	public void listAll() {
 		String uname;
 		if (connected) {
-			try {
-				sockOutput.write("LIST".getBytes());
-				uname = sockInput.readLine();
-				// uname = new String(byte_uname).trim();
-				System.out.println(uname);
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
+			write_client("LIST\n");
+			recv_users();
 		}
 	}
 
@@ -138,7 +134,7 @@ public class Communicator extends Thread {
 
 	public void showFrom(String name) {
 
-		String to, from, msg;
+		
 		try {
 			sock.setSoTimeout(3*1000); //3 second timeout pr message to avoid congestion 
 		} catch (SocketException e) {
@@ -149,23 +145,40 @@ public class Communicator extends Thread {
 		if (connected) {
 			write_client("SHOW\n");
 			write_client(name + "\n");
+			recv_messages();
 
-			while (true) {				
-				to = read_client();
-				if (to.equals("ERROR") || to.equals("LAST")) {
-					System.out.println("abort read/finished reading");
-					try {
-						sock.setSoTimeout(0);
-					} catch (SocketException e) {
-						e.printStackTrace();
-					}
-					return;
+		}
+	}
+	
+	private void recv_users() {
+		String name, online;
+		
+		while (true) {
+			name = read_client();
+			if (name.equals("ERROR") || name.equals("LAST"))
+				return;
+			online = read_client();
+			System.out.format("%30s %s", name, online);
+		} 
+	}
+	
+	private void recv_messages() {
+		String to, from, msg;
+		while (true) {				
+			to = read_client();
+			if (to.equals("ERROR") || to.equals("LAST")) {
+				System.out.println("abort read/finished reading");
+				try {
+					sock.setSoTimeout(0);
+				} catch (SocketException e) {
+					e.printStackTrace();
 				}
-				from = read_client();
-				msg = read_client();
-				String fullmsg = String.format("From %s, To %s\r\n%s", from, to, msg);
-				System.out.println(fullmsg);
+				return;
 			}
+			from = read_client();
+			msg = read_client();
+			String fullmsg = String.format("From %s, To %s\r\n%s", from, to, msg);
+			System.out.println(fullmsg);
 		}
 	}
 

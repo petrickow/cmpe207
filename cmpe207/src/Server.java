@@ -123,15 +123,19 @@ public class Server {
 		notifyAll();
 		if (active_connections >= maxConnections)
 			return -1;
-		else
+		else {
+			System.out.println("whoot, y no uname? "+uname);
+			user_map.get(uname).logon();
 			return 0;
+		}
 	}
 	
 	/**
 	 * Counts down on active connections and notifies all waiting threads
 	 */
-	synchronized void remove_connection() {
+	synchronized void remove_connection(String uname) {
 		active_connections--;
+		user_map.get(uname).logoff();
 		notifyAll();			//wake sleeping threads
 	}
 

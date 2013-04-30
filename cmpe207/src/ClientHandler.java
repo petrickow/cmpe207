@@ -55,13 +55,10 @@ public class ClientHandler extends Thread {
 			}
 				
 			//first get and send all new messages
-			
-			
-
 			try {
 				net_out = new PrintStream(socket.getOutputStream());
 				net_in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-//				deliver(server.get_messages(uname, true));
+				deliver(server.get_messages(uname, true)); //TODO , mark messages as read
 				listen_for_connection();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -129,7 +126,10 @@ public class ClientHandler extends Thread {
 		if (users != null) {
 			for (User u : users) {
 				write_client(u.getName() +"\n");
-				write_client(u.getStatus() + "\n");
+				if (u.getStatus())
+					write_client("yes\n");
+				else
+					write_client("no\n");
 			}
 		}
 		write_client("LAST\n");
@@ -190,7 +190,7 @@ public class ClientHandler extends Thread {
 			e.printStackTrace();
 		}
 		socket = null;
-		server.remove_connection();
+		server.remove_connection(uname);
 	}
 	
 	private void send_error(String msg) {

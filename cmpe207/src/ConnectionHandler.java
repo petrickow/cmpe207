@@ -66,11 +66,12 @@ public class ConnectionHandler implements Runnable {
 		
 		if (!server.check_if_user_exist(uname.trim())) {
 			System.out.println("Connection Handler:\tNo such user" + uname);
-			send_error(net_out, "No such user"); 
+			send_error(net_out, "No such user\n"); 
 			s.close();
 		}
 		else {
-			switch (server.addConnection(s, uname)) {
+			System.out.println(s);
+			switch (server.addConnection(s, uname.trim())) {
 				case 0: send_ack(net_out); System.out.println("Connection Handler:\tConnection success"); break;
 				case -1: send_error(net_out, "NACK WAIT"); System.out.println("Connection Handler:\tTO MANY CONNECTIONS, request queued"); break; //put in queue
 				case -2: send_error(net_out, "ALREADY SIGNED IN"); System.out.println("Connection Handler:\tALREADY SIGNED IN"); s.close(); break;
