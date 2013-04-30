@@ -19,7 +19,10 @@ public class Shell extends Thread  {
 			
 			switch (input) {
 				case "active": count_active(); break;
-				default: System.out.format("not a command\n%s", help()); 
+				case "msg": server.test_msg(); break;
+				case "list": server.get_users(); break;
+				default: System.out.format("not a command\n%s", help());
+				
 			}
 			
 		}

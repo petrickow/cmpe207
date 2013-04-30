@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Collection;
 
 public class ClientHandler extends Thread {
 	int BUFFERSIZE = 1024;
@@ -23,7 +24,7 @@ public class ClientHandler extends Thread {
 	boolean ALL_MESSAGES = false;
 	Server server;
 	String uname;
-	Socket socket;
+	Socket socket = null;
 	BufferedReader net_in;
 	PrintStream net_out;
 	int number;
@@ -77,11 +78,8 @@ public class ClientHandler extends Thread {
 	//We need to be able to send while still listening for activity
 	private void listen_for_connection() throws IOException {
 		System.out.println("CLIENT HANDLER "+number + " listening on socket: " + socket);
-		byte[] buffer = new byte[BUFFERSIZE];
 		
 		while (true) {						//get COMMAND - (MSG*) and/or WHO
-			String whos;
-			buffer = new byte[BUFFERSIZE]; 	//clear buffer
 			
 			System.out.println("...waiting for client");
 			String input = read_client();	//get content from client
@@ -95,7 +93,7 @@ public class ClientHandler extends Thread {
 					case "CLOSE": close_connection(); return;
 					case "MSG": handle_msg(); break;
 					case "SHOW": show_wall(read_client()); break;
-					
+					case "LIST": deliver(server.get_users()); break;
 					default: System.out.println("CLIENT HANDLER "+ number +" -> recieved unknown command!"); break;
 				}
 			} else {
@@ -126,19 +124,29 @@ public class ClientHandler extends Thread {
 		
 		write_client("LAST\n");
 	}
+	
+	private void deliver(Collection<User> users) {
+		if (users != null) {
+			for (User u : users) {
+				write_client(u.getName() +"\n");
+				write_client(u.getStatus() + "\n");
+			}
+		}
+		write_client("LAST\n");
+	}
 
 	/***
 	 * Show all messages to a given user. Receive a username from connection
 	 * and query database for messages to that username
 	 */
 	private void show_wall(String username) {
-		
-		System.out.println("... getting "+ username + "'s wall");
 		if (username == null)
 			return;
+		
 		boolean only_new = false; 					//to make code more self explanatory
 		if (server.check_if_user_exist(username)) { //the user exist, get msg's
-			
+			System.out.println("... getting "+ username + "'s wall");
+
 			//TODO, move nullpointertest here to avoid doing the same test over
 			Message[] messages = server.get_messages(username, only_new);
 
@@ -186,7 +194,7 @@ public class ClientHandler extends Thread {
 	}
 	
 	private void send_error(String msg) {
-		String error_msg = "ERROR: " + msg;
+		String error_msg = "ERROR: " + msg + "\n";
 		write_client(error_msg);
 	}
 	
@@ -206,7 +214,11 @@ public class ClientHandler extends Thread {
 		String s;
 		try {
 			s = net_in.readLine();
-			System.out.println("server received " + s.length() + "bytes");
+			if (s == null) {
+				System.out.println("humbug");
+				return null;
+			}
+			System.out.println("server received " + s);
 		} catch (IOException e) {
 			e.getLocalizedMessage();
 			return null;
@@ -230,5 +242,9 @@ public class ClientHandler extends Thread {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	public void test() {
+		write_client("TEST\n");
+		System.out.println("test sent");
 	}
 }

@@ -1,11 +1,15 @@
-public class CMPE207client {
+/*This class will be used for testin purposes
+ *
+ *
+ *
+ */
 
-	public CMPE207client() {
-	}
+
+public class CMPE207client {
 
 	public static void main(String[] args) {
 
-		Client client = new Client("localhost", 7777);
-		client.runClient();	
+		Client client = new Client();
+		
 	}
 }

@@ -57,7 +57,7 @@ public class ConnectionHandler implements Runnable {
 			net_in.read(recv);	//This is a bottleneck, if client f's up before sending stuff, blocking, freeze
 		} catch (SocketTimeoutException e) {
 			System.out.println(e.getLocalizedMessage());
-			send_error(net_out, "Timeout on login"); 
+			send_error(net_out, "Timeout during login"); 
 			s.close();
 			return;
 		}

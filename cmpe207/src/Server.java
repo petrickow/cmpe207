@@ -1,4 +1,7 @@
 import java.net.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.io.*;
 import java.sql.*;
@@ -12,10 +15,13 @@ public class Server {
 	
 	ClientHandler connections[];
 	Thread connection_handler;
+	
 	ServerSocket listeningSocket;
 	Connection dbconnection;
 	Statement dbstat;
 	LinkedList<QuePack> queue;
+	
+	HashMap<String, User> user_map;
 	Shell debugconsole;
 	
 	/*Constructor with max connections*/
@@ -23,19 +29,7 @@ public class Server {
 		this.maxConnections = maxConnections;
 		this.serverPort = port;
 		active_connections = 0;
-        
-		try {
-            listeningSocket = new ServerSocket(serverPort);
-        }
-        catch (IOException e){
-            e.printStackTrace(System.err);
-        }
-		
-		connections = new ClientHandler[maxConnections];
-		
-		queue = new LinkedList<QuePack>();
-				
-		connection_handler = new Thread(new ConnectionHandler(this, listeningSocket));
+	
 	}
 
 	private ResultSet connect_to_database() {
@@ -61,7 +55,20 @@ public class Server {
 	}
 	
 	int runServer() {
+		connections = new ClientHandler[maxConnections];
+		queue = new LinkedList<QuePack>();
+		user_map = new HashMap<String, User>();
+		load_users();
+		try {
+            listeningSocket = new ServerSocket(serverPort);
+        }
+        catch (IOException e){
+            e.printStackTrace(System.err);
+        }
+		
+		connection_handler = new Thread(new ConnectionHandler(this, listeningSocket));
 		connection_handler.start();
+		
 		for (int i = 0; i < maxConnections; ++i) {
 			connections[i] = new ClientHandler(this, i+1);
 			connections[i].start();
@@ -168,6 +175,40 @@ public class Server {
 		}
 		return null;
 	}
+
+	synchronized void load_users() {
+		
+		ResultSet result; 
+		connect_to_database();
+		String username_query = "SELECT uname FROM users";
+		try {
+			
+			result = dbstat.executeQuery(username_query);
+			result.beforeFirst();
+			while (result.next()) {
+				user_map.put(result.getString(1), new User(result.getString(1)));
+			}
+			result.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		close_database_connection();
+	}
+	
+	synchronized Collection<User> get_users() {
+		if (user_map.size() > 0)  
+			return user_map.values();
+		else 
+			return null;
+	}
+	
+	synchronized boolean get_user_status(String uname) {
+		User u = user_map.get(uname);
+		if (u == null)
+			return false;
+		else 
+			return u.getStatus();
+	}
 	
 	synchronized Message[] get_messages(String username, boolean only_new) {
 		String count_query;
@@ -259,5 +300,16 @@ public class Server {
 
 	public int num_con() {
 		return active_connections;
+	}
+	
+	
+	public void test_msg() {
+		for (ClientHandler h : connections) {
+			if (h.socket != null) {
+				h.test();
+				return;
+			}
+		}
+		System.out.println("Fail");
 	}
 }
