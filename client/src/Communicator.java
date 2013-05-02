@@ -200,7 +200,11 @@ public class Communicator extends Thread {
 			e.printStackTrace();
 		}
 		String[] command;
-		command = s.split("\\s+");
+		command = s.split("@|>");
+		// for(int i = 0; i<command.length; i++){
+		// System.out.println(command[i]);
+		// }
+
 		if (command.length == 1) {
 			switch (command[0]) {
 			case "listall":
@@ -212,22 +216,44 @@ public class Communicator extends Thread {
 			case "quit":
 				quit();
 				return;
+			case "help":
+				System.out
+						.println("Valid commands are listed as following:\r\n"
+								+ "\tlistall - to list all users.\r\n"
+								+ "\tpost>(message) - to post on your own wall\r\n"
+								+ "\tpost@(username)>(message) - to post on other's wall\r\n"
+								+ "\tshow - to show your own wall\r\n"
+								+ "\tshow@(username) - to show other's wall\r\n"
+								+ "\tquit - to logoff and close the program");
+				break;
+			default:
+				System.out
+						.println("Error, invalid command. Type \"help\" for valid command and formats.");
 			}
 		} else if (command.length == 2) {
 			switch (command[0]) {
-				case "post":
-					post(command[1]);
-					break;
-				case "show":
-					showFrom(command[1]);
-					break;
+			case "post":
+				post(command[1]);
+				break;
+			case "show":
+				showFrom(command[1]);
+				break;
+			default:
+				System.out
+						.println("Error, invalid command. Type \"help\" for valid command and formats.");
 			}
 		} else if (command.length == 3) {
 			switch (command[0]) {
-				case "post":
-					postOn(command[1], command[2]);
-					break;
+			case "post":
+				postOn(command[1], command[2]);
+				break;
+			default:
+				System.out
+						.println("Error, invalid command. Type \"help\" for valid command and formats.");
 			}
+		} else {
+			System.out
+					.println("Error, invalid command. Type \"help\" for valid command and formats.");
 		}
 	}
 
