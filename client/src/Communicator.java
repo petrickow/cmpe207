@@ -37,8 +37,11 @@ public class Communicator extends Thread {
 				
 				String fromServer = sockInput.readLine();
 				if (fromServer != null) {
-					//TODO handle message					
-					System.out.println(fromServer);
+					switch (fromServer.trim()) {//TODO handle message
+						case "MSG": recv_messages(); break;
+						case "TEST": write_client("ALIVE\n"); break;
+						case "SENT": System.out.println("Message delivered"); break;
+					}
 				}
 			} catch (IOException e ) {
 				String com = client.getCommand();
@@ -101,7 +104,7 @@ public class Communicator extends Thread {
 	}
 	
 	public void listAll() {
-		String uname;
+		System.out.println(connected);
 		if (connected) {
 			write_client("LIST\n");
 			recv_users();
@@ -112,17 +115,11 @@ public class Communicator extends Thread {
 		postOn(this.uname, message);
 	}
 
-	public void postOn(String name, String message) {
+	public void postOn(String to, String message) {
 		if (connected) {
-			try {
-				sockOutput.write("MSG".getBytes());
-				sockOutput.write(name.getBytes());
-				sockOutput.write(message.getBytes());
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-
+				write_client("MSG\n");
+				write_client(to + "\n");
+				write_client(message + "\n");
 		} else {
 			System.out.println("Connection required.");
 		}
@@ -158,12 +155,12 @@ public class Communicator extends Thread {
 			if (name.equals("ERROR") || name.equals("LAST"))
 				return;
 			online = read_client();
-			System.out.format("%30s %s", name, online);
+			System.out.format("%30s %s\n", name, online);
 		} 
 	}
 	
 	private void recv_messages() {
-		String to, from, msg;
+		String to, from, msg, id;
 		while (true) {				
 			to = read_client();
 			if (to.equals("ERROR") || to.equals("LAST")) {
@@ -177,6 +174,7 @@ public class Communicator extends Thread {
 			}
 			from = read_client();
 			msg = read_client();
+//			id = read_client(); //TODO, return id to connection handler to update database for reliable delivery
 			String fullmsg = String.format("From %s, To %s\r\n%s", from, to, msg);
 			System.out.println(fullmsg);
 		}
@@ -235,9 +233,8 @@ public class Communicator extends Thread {
 
 	private void write_client(String sending) {
 		try {
-			System.out.println("Sending "+sending);
+//			System.out.println("Sending "+sending);
 			sockOutput.write(sending.getBytes());
-			sockOutput.flush();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

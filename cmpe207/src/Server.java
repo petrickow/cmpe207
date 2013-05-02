@@ -218,11 +218,11 @@ public class Server {
 		String count_query;
 		String message_query;
 		if (only_new) {
-			message_query = "SELECT uname, message, sender FROM messages WHERE uname like \"" + username + "\" AND `read` IS FALSE";
-			count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\" AND `read` IS FALSE";
+			message_query = "SELECT uname, message, sender, id FROM messages WHERE uname like \"" + username + "\" AND `isread` IS FALSE";
+			count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\" AND `isread` IS FALSE";
 		}
 		else {
-			message_query = "SELECT uname, message, sender FROM messages WHERE uname like \"" + username + "\"";
+			message_query = "SELECT uname, message, sender, id FROM messages WHERE uname like \"" + username + "\"";
 			count_query = "SELECT COUNT(uname) FROM messages WHERE uname like \"" + username + "\"";
 		}
 		
@@ -234,16 +234,18 @@ public class Server {
 			int count = result.getInt(1);	//buuu hard coded to get the result from count query
 			
 			messages = new Message[count];	//but we get the number of messages so we can constuct array
-			System.out.println("SERVER:\tRetriving all "+ username + "'s " + count + " messages");
-			if (count == 0)
+			
+			if (count == 0) {
+				System.out.println("SERVER:\tNo messages for "+ username);
 				return null;
+			}
 			else {
 				//get the messages:
-				
+				System.out.println("SERVER:\tRetriving all "+ username + "'s " + count + " messages");
 				result = dbstat.executeQuery(message_query);
 				int i = 0;
 				while (result.next()) {
-					messages[i++] = new Message(result.getString("message"), result.getString("uname"), result.getString("sender"));
+					messages[i++] = new Message(result.getInt("id"), result.getString("message"), result.getString("uname"), result.getString("sender"));
 //					String m = messages[i-1].toString();
 				}
 			}
@@ -273,19 +275,24 @@ public class Server {
 		}
 		connect_to_database();
 		String insert = "INSERT INTO messages (uname, message, sender) VALUES (\""+ to + "\", \"" + message +"\", \"" + from+"\")";
-		
+		String get_id = "SELECT id FROM messages WHERE uname like \""+to +"\" AND message like \""+ message + "\"";
 		//TODO, refactor, messy code
 		try {
 			if (dbstat.executeUpdate(insert) > 0) {
-				System.out.println("SERVER:\tSuccess inserting message to database");
+				System.out.println("SERVER:\tSuccess inserting message from " + from + "to " + to + "  into database");
 				for (ClientHandler ch : connections) {
 					if (ch.uname != null) {
-						if (ch.uname.equals(to)) {
-							System.out.println("SERVER:\tuser is online, delivering message and updating database");
-							ch.deliver(new Message(message, to, from));
-							String read = "UPDATE messages SET isread = true WHERE uname like \""+to+"\" and message like \""+message+"\"";
-							dbstat.executeUpdate(read);
-							break;
+						if (ch.uname.equals(to)) { //special case, do not send to the user who sent it
+							ResultSet result = dbstat.executeQuery(get_id);
+							if (result.next()) {
+								int id = result.getInt("id");
+								System.out.println("SERVER:\tthe user is online, delivering message and updating database");
+								ch.alert_asynch();
+								ch.deliver(new Message(id, message, to, from), true);
+							//String read = "UPDATE messages SET isread = true WHERE uname like \""+to+"\" and message like \""+message+"\""; //TODO, test on id
+							//dbstat.executeUpdate(read);
+								break;
+							} 
 						}
 					}
 				}
@@ -298,7 +305,9 @@ public class Server {
 			e.printStackTrace();
 			close_database_connection();
 			return false;
-		}
+		}			
+		close_database_connection();
+
 		return true;
 	}
 
@@ -306,6 +315,25 @@ public class Server {
 		return active_connections;
 	}
 	
+	public void mark_read(Integer[] ids) {
+		if (ids != null) {
+			connect_to_database();
+			String read;
+			
+			for (int id : ids) { 
+				read = "UPDATE messages SET isread = true WHERE id ="+id;
+				try {
+					if (dbstat.executeUpdate(read)>0)
+						System.out.println("Success in update of " + id);
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			close_database_connection();
+		}
+	}
 	
 	public void test_msg() {
 		for (ClientHandler h : connections) {

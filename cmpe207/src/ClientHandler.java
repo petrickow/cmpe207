@@ -6,12 +6,9 @@
 //VERY IMPORTANT TODO!
 //Timeout for all network operations (net_in/out)!
 
-import java.io.DataInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.net.SocketException;
@@ -58,18 +55,41 @@ public class ClientHandler extends Thread {
 			try {
 				net_out = new PrintStream(socket.getOutputStream());
 				net_in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				deliver(server.get_messages(uname, true)); //TODO , mark messages as read
+				deliver(server.get_messages(uname, true), true); //TODO , mark messages as read
 				listen_for_connection();
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.out.println("timeout, make sure connection is alive");
+				if (!is_alive()) {
+					close_connection();
+				}
 			}
-
 		}
 	}
 
 	//temporary unused solution until we have a check in the protocol to test if client process is running
 	private boolean is_alive() {
-		return !socket.isClosed();
+		int i = 0;
+		if (socket == null) {
+			return false;
+		}
+		
+		while (i < 3) { //Try three times if it times out, but close if return null, see api
+			write_client("TEST\n");
+			String r = read_client();
+			if (r == null) { //returns null when no contact, no need to try again 
+				return false;
+			}
+			
+			if (r != null && r.trim().equals("ALIVE")) {
+				return true;
+			}
+			else {
+				i++;
+				System.out.print("***");
+			}
+		}
+		System.out.println("");
+		return false;
 	}
 
 	//We need to be able to send while still listening for activity
@@ -78,10 +98,18 @@ public class ClientHandler extends Thread {
 		
 		while (true) {						//get COMMAND - (MSG*) and/or WHO
 			
-			System.out.println("...waiting for client");
+			System.out.println("...waiting for client\t" + is_alive());
+			socket.setSoTimeout(10 * 1000);
 			String input = read_client();	//get content from client
-			
-			System.out.println("CLIENT HANDLER " + number+":\t\t" + uname + " wrote to server: " + input);
+			if (input != null) 
+				System.out.println("CLIENT HANDLER " + number+":\t\t" + uname + " wrote to server: " + input);
+			else {
+				if (!is_alive()) {
+					System.out.println("Lost connection");
+					close_connection();
+					return;
+				}
+			}
 			
 			String command = input /*get_command(input)*/;
 			
@@ -94,32 +122,43 @@ public class ClientHandler extends Thread {
 					default: System.out.println("CLIENT HANDLER "+ number +" -> recieved unknown command!"); break;
 				}
 			} else {
-				System.out.println("CLIENT HANDLER "+ number +" -> No information in package from client!");
+				if (!is_alive()) {
+					System.out.println("CLIENT HANDLER "+ number +" -> Socket suddenly closed!");
+					close_connection();
+				} else {
+					//bogus package
+				}
 			}
 		}
 	}
 	
 	//deliver single message to the user on the other end
-	public void deliver(Message message) {
+	public void deliver(Message message, boolean mark) {
 		if (message != null) { 
 			Message[] m = new Message[1];
 			m[0] = message;
-			deliver(m);
+			deliver(m, mark);
 		}
 	}
 	
 	//deliver array of messages
-	private void deliver(Message[] messages) {
+	private void deliver(Message[] messages, boolean mark) {
+		Integer id_delivered[];
 		if (messages != null) {
+			id_delivered = new Integer[messages.length];
+			int i = 0;
+			
 			for (Message m : messages) {
 				write_client(m.to + "\n");
 				write_client(m.from + "\n");
 				write_client(m.message + "\n");
-				//when success, update Database "read" yes
+//				write_client(m.msgid + "\n");
+				id_delivered[i] = new Integer(m.msgid);
 			}
+			if (mark)
+				mark_messages(id_delivered);
 		}
-		
-		write_client("LAST\n");
+		write_client("LAST\n");		
 	}
 	
 	private void deliver(Collection<User> users) {
@@ -134,7 +173,14 @@ public class ClientHandler extends Thread {
 		}
 		write_client("LAST\n");
 	}
+	public void alert_asynch() {
+		write_client("MSG\n");
+	}
 
+	public void mark_messages(Integer[] msgid) {
+		server.mark_read(msgid);
+	}
+	
 	/***
 	 * Show all messages to a given user. Receive a username from connection
 	 * and query database for messages to that username
@@ -150,7 +196,7 @@ public class ClientHandler extends Thread {
 			//TODO, move nullpointertest here to avoid doing the same test over
 			Message[] messages = server.get_messages(username, only_new);
 
-			deliver(messages);
+			deliver(messages, false);
 				
 				//debug
 			if (messages != null) {
@@ -166,9 +212,6 @@ public class ClientHandler extends Thread {
 
 	private void handle_msg() {
 		System.out.print("CLIENT HANDLER "+number +" ->Handle message from: " + uname);
-//		byte[] byte_to = new byte[MAXUSERNAMELENGTH];
-//		byte[] byte_message = new byte[1024]; //max size for messages is set to be 1024 at the moment
-		int length;
 		String to, message;
 		//get the recipient and the message itself
 		to = read_client();
@@ -176,7 +219,7 @@ public class ClientHandler extends Thread {
 		
 		//ready to store
 		if (server.store_message(message, uname, to)) {
-			write_client("SENT");
+			write_client("SENT\n");
 			System.out.println(" to: " + to + " reads: \"" + message + "\"");
 		}
 		else
@@ -215,12 +258,13 @@ public class ClientHandler extends Thread {
 		try {
 			s = net_in.readLine();
 			if (s == null) {
-				System.out.println("humbug");
+//				System.out.println("got null, client closed?");
 				return null;
 			}
 			System.out.println("server received " + s);
 		} catch (IOException e) {
 			e.getLocalizedMessage();
+			//timeout?
 			return null;
 		}
 		
@@ -228,14 +272,6 @@ public class ClientHandler extends Thread {
 	}
 	
 	@SuppressWarnings("unused")
-	private synchronized void new_message(String msg) throws IOException {
-		System.out.println("CLIENT HANDLER "+number +":\t\t" + uname + " has gotten a message");
-//		int len;
-//		do {
-//			len = net_in.read(msg.getBytes());
-//		} while (len != 0);
-	}
-	
 	private void error_shutdown() {
 		try {
 			socket.close();

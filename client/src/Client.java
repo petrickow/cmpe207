@@ -1,3 +1,6 @@
+import java.util.Date;
+import java.util.Random;
+
 public class Client {
 	boolean quit = false;
 	Communicator com;
@@ -46,6 +49,23 @@ public class Client {
 			wait();
 		} catch (InterruptedException e) {
 			return;
+		}
+	}
+	
+	//TODO
+	synchronized public void run_test(String name) throws InterruptedException {
+		Random r = new Random(new Date().getTime());
+		com.connect(name);
+		int i = 0;
+		while (i < 50) {
+			wait(r.nextInt(15)*1000);
+			switch (r.nextInt(3)) {
+				case 0: command = "listall"; break;
+				case 1: command = "msg Yuyu test"; break;
+				case 2: command = "show Jack"; break;
+				default: break;
+			}
+			i++;
 		}
 		
 	}

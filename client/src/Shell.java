@@ -37,7 +37,6 @@ public class Shell extends Thread {
 				s = bufferRead.readLine();
 				if (s.trim().equalsIgnoreCase("quit")) {
 					c.quit();
-					System.out.println(connected);
 				}
 				else {
 					c.userCommand(s);
